@@ -1,0 +1,29 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": true
+  },
+  "api": {
+    "title": "PDF解析和图片处理服务",
+    "description": "一个支持PDF解析、图片上传和AI图像分析的 FastAPI 服务",
+    "version": "1.0.0"
+  },
+  "upload": {
+    "allowed_extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"],
+    "max_file_size_mb": 50
+  },  "storage": {
+    "pdf_dir": "uploads/pdfs",
+    "markdown_dir": "uploads/markdown",
+    "images_dir": "uploads/images",
+    "temp_dir": "temp",
+    "keep_original_files": true,
+    "keep_markdown_files": true
+  },
+  "cors": {
+    "allow_origins": ["*"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  }
+}

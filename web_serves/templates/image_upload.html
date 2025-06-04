@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}图片上传测试{% endblock %}
+
+{% block content %}
+    <h1>🖼️ 图片上传测试</h1>
+    
+    <!-- 单文件上传 -->
+    <div class="upload-section">
+        <h3>单文件上传</h3>
+        <input type="file" id="singleFile" accept="image/*">
+        <br>
+        <button onclick="uploadSingle()">上传单个图片</button>
+    </div>
+    
+    <!-- 多文件上传 -->
+    <div class="upload-section">
+        <h3>多文件上传</h3>
+        <input type="file" id="multipleFiles" accept="image/*" multiple>
+        <br>
+        <button onclick="uploadMultiple()">上传多个图片</button>
+    </div>
+{% endblock %}

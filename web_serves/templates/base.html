@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PDF解析和图片上传测试{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        {% block content %}{% endblock %}
+        
+        <!-- 结果显示 -->
+        <div id="result"></div>
+    </div>
+    
+    <!-- 配置信息传递给JavaScript -->
+    <script>
+        window.CONFIG = {
+            API_BASE_URL: "{{ api_base_url }}",
+            UPLOAD_CONFIG: {{ config.upload | tojson }},
+            SERVER_CONFIG: {{ config.server | tojson }}
+        };
+    </script>
+    <script src="/static/js/upload.js"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

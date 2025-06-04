@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF解析和图片上传测试 - 旧版本</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        .notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .link-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .link-button:hover {
+            background-color: #0056b3;
+        }
+        .description {
+            margin-top: 30px;
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="notice">
+        <h2>📢 页面已重构</h2>
+        <p>这个页面的功能已经被拆分为多个模块化的页面。请选择您需要的功能：</p>
+    </div>
+    
+    <div class="links">
+        <a href="/" class="link-button">🏠 主页 (完整功能)</a>
+        <a href="/pdf" class="link-button">📄 PDF处理</a>
+        <a href="/image" class="link-button">🖼️ 图片上传</a>
+    </div>
+    
+    <div class="description">
+        <h3>新的页面结构</h3>
+        <ul style="text-align: left; display: inline-block;">
+            <li><strong>主页 (/)</strong>: 包含所有功能的完整页面</li>
+            <li><strong>PDF处理 (/pdf)</strong>: 专门用于PDF文件处理</li>
+            <li><strong>图片上传 (/image)</strong>: 专门用于图片文件上传</li>
+        </ul>
+        <p>新的页面结构更加模块化，方便维护和扩展。</p>
+    </div>
+</body>
+</html>

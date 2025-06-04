@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}PDF解析和图片上传测试{% endblock %}
+
+{% block content %}
+    <h1>📄 PDF解析和图片上传测试</h1>
+    
+    <!-- PDF上传和处理 -->
+    <div class="upload-section pdf-section">
+        <h3>PDF上传和处理</h3>
+        <input type="file" id="pdfFile" accept=".pdf">
+          <!-- PDF处理配置 -->
+        <div class="config-section">
+            <label>AI提供商:</label>
+            <select id="provider">
+                <option value="zhipu">智谱AI</option>
+                <option value="guiji">硅基流动</option>
+                <option value="volces">火山引擎</option>
+                <option value="openai">OpenAI</option>
+            </select>
+              <label>包含描述:</label>
+            <input type="checkbox" id="includeDescriptions" checked>
+        </div>
+        
+        <button onclick="uploadPdf()">上传并处理PDF</button>
+    </div>
+    
+    <!-- 单文件上传 -->
+    <div class="upload-section">
+        <h3>单文件上传</h3>
+        <input type="file" id="singleFile" accept="image/*">
+        <br>
+        <button onclick="uploadSingle()">上传单个图片</button>
+    </div>
+    
+    <!-- 多文件上传 -->
+    <div class="upload-section">
+        <h3>多文件上传</h3>
+        <input type="file" id="multipleFiles" accept="image/*" multiple>
+        <br>
+        <button onclick="uploadMultiple()">上传多个图片</button>
+    </div>
+{% endblock %}
