@@ -11,14 +11,28 @@
   },
   "upload": {
     "allowed_extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"],
-    "max_file_size_mb": 50
-  },  "storage": {
+    "max_file_size_mb": 50,
+    "supported_image_extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"],
+    "supported_pdf_extensions": [".pdf"]
+  },
+  "storage": {
     "pdf_dir": "uploads/pdfs",
     "markdown_dir": "uploads/markdown",
     "images_dir": "uploads/images",
     "temp_dir": "temp",
     "keep_original_files": true,
     "keep_markdown_files": true
+  },
+  "file_settings": {
+    "max_filename_length": 50,
+    "filename_clean_pattern": "[^\\\\\\\\w\\\\\\\\u4e00-\\\\\\\\u9fff-]",
+    "filename_replacement": "_"
+  },
+  "ai_services": {
+    "default_image_provider": "zhipu",
+    "default_max_concurrent_ai": 10,
+    "title_max_length": 10,
+    "description_max_length": 50
   },
   "cors": {
     "allow_origins": ["*"],

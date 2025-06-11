@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
 from web_serves.config import API_CONFIG, BASE_DIR, CORS_CONFIG, SERVER_CONFIG
-from web_serves.routers import system, image_upload, pdf_processing
+from web_serves.routers import image_upload, pdf_processing
 
 
 # 创建FastAPI应用实例
@@ -59,7 +59,6 @@ async def pdf_upload_page(request: Request):
     })
 
 # 注册路由
-app.include_router(system.router)
 app.include_router(image_upload.router)
 app.include_router(pdf_processing.router)
 
@@ -67,8 +66,8 @@ app.include_router(pdf_processing.router)
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "web_serves.app:app", 
-        host=SERVER_CONFIG["host"], 
-        port=SERVER_CONFIG["port"], 
-        reload=SERVER_CONFIG["debug"]
+        "web_serves.app:app",
+        host=SERVER_CONFIG.get("host"),
+        port=SERVER_CONFIG.get("port"),
+        reload=SERVER_CONFIG.get("debug")
     )

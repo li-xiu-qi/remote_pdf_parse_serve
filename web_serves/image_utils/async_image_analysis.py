@@ -11,27 +11,10 @@ from PIL import Image
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
+from web_serves.config import app_config
+from web_serves.image_utils.prompts import get_image_analysis_prompt
 from web_serves.image_utils.image_analysis_utils import extract_json_content, image_to_base64_async
 load_dotenv()
-
-# 提示词模板
-MULTIMODAL_PROMPT = """
-请分析这张图片并生成一个10字以内的标题、50字以内的图片描述，使用JSON格式输出。
-
-分析以下方面:
-1. 图像类型（图表、示意图、照片等）
-2. 主要内容/主题
-3. 包含的关键信息点
-4. 图像的可能用途
-
-输出格式必须严格为:
-{
-  "title": "简洁标题(10字以内)",
-  "description": "详细描述(50字以内)",
-}
-
-只返回JSON，不要有其他说明文字。
-"""
 
 
 class AsyncImageAnalysis:
@@ -122,7 +105,13 @@ class AsyncImageAnalysis:
         )
 
         # 设置提示词
-        self._prompt = prompt or MULTIMODAL_PROMPT
+        if prompt:
+            self._prompt = prompt
+        else:
+            self._prompt = get_image_analysis_prompt(
+                title_max_length=app_config.ai_services.title_max_length,
+                description_max_length=app_config.ai_services.description_max_length
+            )
         
         # 设置并发限制
         self.semaphore = asyncio.Semaphore(max_concurrent)
@@ -277,42 +266,65 @@ class AsyncImageAnalysis:
 
 async def main():
     """示例使用方法"""
-    async with AsyncImageAnalysis() as image_analyzer:
-        local_image = "./image.png"
-        
+    async with AsyncImageAnalysis() as image_analyzer: # Removed provider, will use default
+        local_image = "./image.png" # Assuming this exists in the context where main is run
+        if not os.path.exists(local_image):
+            print(f"Warning: Test image {local_image} not found, creating a dummy file for main example.")
+            try:
+                with open(local_image, "w") as f:
+                    f.write("dummy content")
+            except IOError as e:
+                print(f"Could not create dummy file: {e}")
+                # If dummy file can't be created, skip parts of main that need it.
+                return
+
+
         # 单张图像分析
         print("分析单张图像...")
         start_time = time.time()
         result = await image_analyzer.analyze_image(
             local_image_path=local_image,
-            model="Qwen/Qwen2.5-VL-32B-Instruct",
+            # model="Qwen/Qwen2.5-VL-32B-Instruct", # Model can be specified or use default
             detail="low",
-            prompt=MULTIMODAL_PROMPT,
+            # prompt=MULTIMODAL_PROMPT, # Removed, will use default prompt from app_config
             temperature=0.1,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        print(f"单张图像分析耗时: {time.time() - start_time:.2f}秒\n")
-        
+        print(f"单张图像分析耗时: {time.time() - start_time:.2f}秒\\n")
+
         # 批量图像分析示例
         print("批量分析图像...")
-        image_sources = [
-            {"local_image_path": "./image.png"},
-            {"image_url": "https://example.com/image1.jpg"},  # 示例URL
-            {"local_image_path": "./another_image.png"},
-        ]
+        # Ensure dummy files exist if needed for batch example, or adjust example
+        another_image_path = "./another_image.png"
+        if not os.path.exists(another_image_path):
+            print(f"Warning: Test image {another_image_path} not found, creating a dummy file for main example.")
+            try:
+                with open(another_image_path, "w") as f:
+                    f.write("dummy content another")
+            except IOError as e:
+                print(f"Could not create dummy file: {e}")
         
+        image_sources = [
+            {"local_image_path": local_image},
+            # {"image_url": "https://example.com/image1.jpg"}, # Example URL, might not be live
+            # {"local_image_path": another_image_path}, # Use if exists
+        ]
+        if os.path.exists(another_image_path):
+            image_sources.append({"local_image_path": another_image_path})
+
+
         start_time = time.time()
         batch_results = await image_analyzer.analyze_multiple_images(
-            image_sources=image_sources[:1],  # 只使用第一个，避免文件不存在错误
-            model="Qwen/Qwen2.5-VL-32B-Instruct",
+            image_sources=image_sources, 
+            # model="Qwen/Qwen2.5-VL-32B-Instruct", # Model can be specified or use default
             detail="low",
             temperature=0.1,
         )
-        
-        for i, result in enumerate(batch_results):
+
+        for i, res in enumerate(batch_results): # Changed result to res to avoid conflict
             print(f"图像 {i+1} 分析结果:")
-            print(json.dumps(result, ensure_ascii=False, indent=2))
-        
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+
         print(f"批量分析耗时: {time.time() - start_time:.2f}秒")
 
 

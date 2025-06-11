@@ -1,16 +1,19 @@
-import os
-import base64
-import hashlib
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+图片分析工具类 - 包含调用AI服务进行图片分析的逻辑
+"""
 import json
-from typing import Dict, Any, List, Union, Optional
-import logging
-from PIL import Image
-import time
-import asyncio
-import aiohttp
+from typing import Dict, Any, Optional
+
+from web_serves.config import app_config
+from web_serves.image_utils.prompts import get_image_analysis_prompt
+from web_serves.utils.logger import get_logger
+
 import aiofiles
+import base64
 
-
+logger = get_logger(__name__)
 
 def extract_json_content(text: str) -> Dict[str, Any]:
     """

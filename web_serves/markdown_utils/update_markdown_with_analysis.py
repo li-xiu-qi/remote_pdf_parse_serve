@@ -5,7 +5,6 @@ from typing import Dict, Any, Match, Optional
 def update_markdown_with_analysis(
     markdown_content: str,
     image_analysis_results: Dict[str, Dict[str, Any]],
-    include_descriptions: bool = True,
 ) -> str:
     """
     更新Markdown内容，替换图片链接并添加描述
@@ -21,7 +20,6 @@ def update_markdown_with_analysis(
             - title (str): 图片标题
             - url (str): 图片的远程URL
             - description (str): 图片描述
-        include_descriptions (bool, optional): 是否在Markdown中包含图片描述。默认为True。
     
     Returns:
         str: 更新后的Markdown内容
@@ -97,8 +95,7 @@ def update_markdown_with_analysis(
             new_image: str = f"![{title}]({url})"
 
             # 如果启用描述且有描述内容，添加引用块（以 > 开头的行）
-            if include_descriptions and description:
-                new_image += f"\n> {description}"
+            new_image += f"\n> {description}"
 
             return new_image
         else:            # 如果没有找到对应的分析结果，保持原有的图片标记不变

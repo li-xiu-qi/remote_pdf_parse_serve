@@ -9,14 +9,21 @@ import tempfile
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, HTTPException, Body, Query # Added Query
 from fastapi.responses import JSONResponse
 
 from web_serves.pdf_utils.mineru_parse import mineru_pdf2md
 from web_serves.markdown_utils.markdown_image_processor import MarkdownImageProcessor
-from web_serves.config import get_storage_paths, get_unique_filename, get_api_base_url
-
+from web_serves.config import (
+    get_storage_paths, 
+    get_api_base_url, 
+    DEFAULT_IMAGE_PROVIDER,
+    DEFAULT_MAX_CONCURRENT_AI # Added DEFAULT_MAX_CONCURRENT_AI
+)
+from web_serves.utils.file_handler import FileHandler
+from web_serves.exceptions import UnsupportedFileTypeError, FileSaveError
 
 router = APIRouter(prefix="/upload", tags=["PDF处理"])
 
@@ -24,52 +31,45 @@ router = APIRouter(prefix="/upload", tags=["PDF处理"])
 @router.post("/pdf")
 async def upload_and_process_pdf(
     file: UploadFile = File(...),
-    provider: str = "zhipu",
-    include_descriptions: bool = True,
+    provider: str = DEFAULT_IMAGE_PROVIDER, 
+    max_concurrent: int = DEFAULT_MAX_CONCURRENT_AI,
+    process_images: bool = True  
 ):
     """
-    上传PDF文件，转换为Markdown，并处理图片为远程地址
+    上传PDF文件，转换为Markdown，并可选择性处理图片
     
     Args:
         file: 要上传的PDF文件
         provider: AI视觉模型提供商 (guiji, zhipu, volces, openai)
-        include_descriptions: 是否在Markdown中包含图片描述
-        remote_base_url: 远程图片服务器基础URL，如果为None则使用配置文件中的API地址
+        max_concurrent: 最大并发处理数
+        process_images: 是否对Markdown中的图片进行AI分析和处理
         
     Returns:
         包含处理后的Markdown内容的JSON响应
     """
-
+    print("上传的文件名:", file.filename)  # Debugging line to check uploaded file name
+    print("provider:", provider)  # Debugging line to check provider value
+    
+    print("process_images目前设置的参数是:", process_images)  # Debugging line to check process_images value
     remote_base_url = f"{get_api_base_url()}/uploads/images/"
-    
-    # 检查文件是否存在
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="没有选择文件")
-    
-    # 检查文件类型
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="只支持PDF文件")
-    
-    # 获取存储路径配置
     storage_paths = get_storage_paths()
-    
+    processing_id = uuid.uuid4().hex
+    temp_work_dir = storage_paths["temp_dir"] / processing_id
+    pdf_path: Optional[Path] = None # Initialize pdf_path
+
     try:
-        # 生成唯一的文件名和处理ID
-        processing_id = uuid.uuid4().hex
-        pdf_filename = get_unique_filename(file.filename, storage_paths["pdf_dir"])
-        pdf_path = storage_paths["pdf_dir"] / pdf_filename
-        
-        # 创建临时工作目录
-        temp_work_dir = storage_paths["temp_dir"] / processing_id
+  
+        uploaded_file_info = await FileHandler.save_uploaded_pdf_file(
+            file=file,
+            save_directory=storage_paths["pdf_dir"],
+            # custom_filename=pdf_filename # 如果希望外部控制完整文件名，则取消注释此行并预先生成pdf_filename
+        )
+        pdf_filename = uploaded_file_info["saved_filename"]
+        pdf_path = Path(uploaded_file_info["file_path"])
+        print(f"PDF文件已保存: {pdf_path}")
+
         temp_work_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 保存上传的PDF文件到持久化存储
-        print(f"保存PDF文件到: {pdf_path}")
-        with open(pdf_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # 复制PDF到临时工作目录用于处理
-        temp_pdf_path = temp_work_dir / pdf_filename
+        temp_pdf_path = temp_work_dir / pdf_filename # Use the filename returned by FileHandler
         shutil.copy2(pdf_path, temp_pdf_path)
         
         # 使用mineru转换PDF为Markdown
@@ -78,25 +78,32 @@ async def upload_and_process_pdf(
             pdf_file_path=str(temp_pdf_path),
             md_output_path=str(temp_work_dir),
             return_path=False  # 直接返回内容而不是路径
-        )        # 处理Markdown中的图片
-        print("开始处理Markdown中的图片...")
-        try:
-            async with MarkdownImageProcessor(
-                provider=provider,
-                api_base_url=get_api_base_url(),  # 传递API基础URL
-                max_concurrent=3
-            ) as processor:
-                processed_markdown = await processor.process_markdown_content(
-                    markdown_content,
-                    str(temp_work_dir),
-                    include_descriptions=include_descriptions
-                )
-            print("图片处理完成")
-        except Exception as img_error:
-            print(f"图片处理警告: {img_error}")
-            # 如果图片处理失败，仍然返回原始Markdown
+        )
+        
+        # 根据process_images参数决定是否处理图片
+        if process_images:
+            # 处理Markdown中的图片
+            print("开始处理Markdown中的图片...")
+            try:
+                async with MarkdownImageProcessor(
+                    provider=provider,
+                    api_base_url=get_api_base_url(),
+                    max_concurrent=max_concurrent
+                ) as processor:
+                    processed_markdown = await processor.process_markdown_content(
+                        markdown_content,
+                        str(temp_work_dir),
+                    )
+                print("图片处理完成")
+            except Exception as img_error:
+                print(f"图片处理警告: {img_error}")
+                # 如果图片处理失败，仍然返回原始Markdown
+                processed_markdown = markdown_content
+        else:
+            # 不处理图片，直接使用原始Markdown
+            print("跳过图片处理")
             processed_markdown = markdown_content
-          
+  
         # 保存处理后的Markdown文件到持久化存储
         markdown_path = None
         if storage_paths["keep_markdown_files"]:
@@ -132,12 +139,12 @@ async def upload_and_process_pdf(
                     "markdown_path": str(markdown_path.relative_to(storage_paths["markdown_dir"].parent)) if storage_paths["keep_markdown_files"] else None,
                     "creation_time": creation_time,
                     "provider": provider,
-                    "include_descriptions": include_descriptions
+                    "process_images": process_images  # 添加到响应中
                 },
                 "markdown_content": processed_markdown,
                 "processing_info": {
                     "pdf_converted": True,
-                    "images_processed": "images" in processed_markdown.lower(),
+                    "images_processed": process_images and "images" in processed_markdown.lower(),  # 更准确的判断
                     "remote_base_url": remote_base_url,
                     "temp_directory_cleaned": True
                 }
@@ -151,8 +158,13 @@ async def upload_and_process_pdf(
                 pdf_path.unlink()
             if 'temp_work_dir' in locals() and temp_work_dir.exists():
                 shutil.rmtree(temp_work_dir)
-        except:
-            pass
+        except Exception as cleanup_inner_error: 
+            print(f"清理文件或目录时发生内部错误: {cleanup_inner_error}")
         
         print(f"PDF处理错误: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"PDF处理失败: {str(e)}")
+        if isinstance(e, UnsupportedFileTypeError):
+            raise HTTPException(status_code=400, detail=e.message)
+        elif isinstance(e, FileSaveError):
+            raise HTTPException(status_code=500, detail=e.message)
+        else:
+            raise HTTPException(status_code=500, detail=f"PDF处理失败: {str(e)}")

@@ -215,7 +215,6 @@ class MarkdownImageProcessor:
         self, 
         markdown_content: str, 
         markdown_file_dir: str,
-        include_descriptions: bool = True
     ) -> str:
         """
         处理Markdown内容，替换图片为远程地址
@@ -223,7 +222,6 @@ class MarkdownImageProcessor:
         Args:
             markdown_content: 原始Markdown内容
             markdown_file_dir: Markdown文件所在目录
-            include_descriptions: 是否包含图片描述
             
         Returns:
             更新后的Markdown内容
@@ -242,7 +240,6 @@ class MarkdownImageProcessor:
         updated_content = update_markdown_with_analysis(
             markdown_content, 
             image_results, 
-            include_descriptions
         )
         
         return updated_content
@@ -251,7 +248,6 @@ class MarkdownImageProcessor:
         self, 
         input_file_path: str, 
         output_file_path: str = None,
-        include_descriptions: bool = True
     ) -> str:
         """
         处理Markdown文件
@@ -259,7 +255,6 @@ class MarkdownImageProcessor:
         Args:
             input_file_path: 输入Markdown文件路径
             output_file_path: 输出文件路径，如果为None则覆盖原文件
-            include_descriptions: 是否包含图片描述
             
         Returns:
             处理后的Markdown内容
@@ -278,7 +273,6 @@ class MarkdownImageProcessor:
         updated_content = await self.process_markdown_content(
             original_content, 
             markdown_dir, 
-            include_descriptions
         )
         
         # 写入输出文件
