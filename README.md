@@ -92,7 +92,7 @@ remote_pdf_parse_serve/
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/li-xiu-qi/remote_pdf_parse_serve.git
 cd remote_pdf_parse_serve
 
 # 创建虚拟环境 (推荐)
@@ -526,7 +526,7 @@ pip install -r requirements.txt
 #### 3. 项目部署
 ```bash
 # 克隆项目
-git clone <your-repo-url> /home/pdfservice/pdf-parse-server
+git clone https://github.com/li-xiu-qi/remote_pdf_parse_serve.git /home/pdfservice/pdf-parse-server
 cd /home/pdfservice/pdf-parse-server
 
 # 配置环境变量
