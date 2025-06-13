@@ -32,7 +32,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 async def index(request: Request):
     """主页 - 完整功能页面"""
     from web_serves.config import get_api_base_url, CONFIG
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse("simple_index_antd.html", {
         "request": request,
         "api_base_url": get_api_base_url(),
         "config": CONFIG
@@ -42,7 +42,7 @@ async def index(request: Request):
 async def image_upload_page(request: Request):
     """图片上传页面"""
     from web_serves.config import get_api_base_url, CONFIG
-    return templates.TemplateResponse("image_upload.html", {
+    return templates.TemplateResponse("simple_image_upload_antd.html", {
         "request": request,
         "api_base_url": get_api_base_url(),
         "config": CONFIG
@@ -52,11 +52,52 @@ async def image_upload_page(request: Request):
 async def pdf_upload_page(request: Request):
     """PDF上传页面"""
     from web_serves.config import get_api_base_url, CONFIG
-    return templates.TemplateResponse("pdf_upload.html", {
+    return templates.TemplateResponse("simple_pdf_upload_antd.html", {
         "request": request,
         "api_base_url": get_api_base_url(),
         "config": CONFIG
     })
+
+# API 配置端点
+@app.get("/api/config")
+async def get_frontend_config():
+    """获取前端配置信息"""
+    from web_serves.config import CONFIG, get_api_base_url
+    
+    frontend_config = CONFIG.get("frontend", {})
+    upload_config = CONFIG.get("upload", {})
+    
+    return {
+        "api_base_url": get_api_base_url(),
+        "max_file_size": frontend_config.get("max_file_size", 52428800),  # 50MB
+        "supported_image_formats": frontend_config.get("supported_image_formats", ["jpg", "jpeg", "png", "gif", "bmp", "webp"]),
+        "supported_pdf_formats": frontend_config.get("supported_pdf_formats", ["pdf"]),
+        "upload_timeout": frontend_config.get("upload_timeout", 300000),  # 5分钟
+        "concurrent_uploads": frontend_config.get("concurrent_uploads", 3),
+        "auto_save_interval": frontend_config.get("auto_save_interval", 30000),
+        "preview_max_height": frontend_config.get("preview_max_height", 400),
+        "notification_duration": frontend_config.get("notification_duration", {
+            "success": 5000,
+            "error": 8000,
+            "warning": 6000,
+            "info": 5000
+        }),
+        "max_file_size_mb": upload_config.get("max_file_size_mb", 50),
+        "allowed_extensions": upload_config.get("allowed_extensions", [])
+    }
+
+# 调试端点
+@app.get("/debug/config")
+async def debug_config():
+    """调试配置信息"""
+    from web_serves.config import get_api_base_url, SERVER_CONFIG
+    return {
+        "api_base_url": get_api_base_url(),
+        "server_config": SERVER_CONFIG,
+        "template_vars": {
+            "api_base_url": get_api_base_url()
+        }
+    }
 
 # 注册路由
 app.include_router(image_upload.router)

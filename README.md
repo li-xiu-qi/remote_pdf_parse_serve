@@ -18,11 +18,13 @@
 - **智能分析**: AI 自动生成图片标题和详细描述
 - **多格式支持**: 支持 JPG、PNG、GIF、BMP、WebP 等常见格式
 - **异步处理**: 高并发异步处理，提升处理效率
+- **实时反馈**: 上传进度实时显示，错误信息详细反馈
 
 ### 🌐 Web 界面
 
 - **用户友好界面**: 提供直观的 Web 操作界面
-- **实时反馈**: 处理进度实时显示
+- **拖拽上传**: 支持文件拖拽上传和点击选择
+- **实时预览**: 图片和文件信息实时预览
 - **API 文档**: 完整的 Swagger UI 和 ReDoc 接口文档
 
 ## 🛠️ 技术栈
@@ -70,7 +72,11 @@ remote_pdf_parse_serve/
     │   ├── 🔄 markdown_image_processor.py
     │   └── 📝 update_markdown_with_analysis.py
     ├── 📁 static/                 # 静态文件
-    ├── 📁 templates/              # HTML 模板
+    ├── 📁 templates/              # HTML 模板 (Ant Design 风格)
+    │   ├── 🏠 simple_index_antd.html      # 主页
+    │   ├── 🖼️ simple_image_upload_antd.html # 图片上传页面
+    │   ├── 📄 simple_pdf_upload_antd.html   # PDF上传页面
+    │   └── 🎨 simple_base_antd.html        # 基础模板
     ├── 📁 uploads/                # 文件存储
     │   ├── 📁 pdfs/              # PDF 文件存储
     │   ├── 📁 images/            # 图片文件存储
@@ -79,6 +85,8 @@ remote_pdf_parse_serve/
 ```
 
 ## 🚀 快速开始
+
+> **📋 当前状态**: 本项目已完成主要Bug修复和架构优化，前后端功能正常，无轮询机制，采用同步处理模式。
 
 ### 1. 环境准备
 
@@ -143,17 +151,60 @@ python run_server.py
 - **📚 API文档**: <http://localhost:8000/docs>
 - **📖 ReDoc文档**: <http://localhost:8000/redoc>
 
+### 🧑‍💻 开发者快速验证
+
+```bash
+# 1. 测试API健康状态
+curl http://localhost:8000/
+
+# 2. 测试图片上传 (使用测试图片)
+curl -X POST "http://localhost:8000/upload/image" \
+     -H "accept: application/json" \
+     -H "Content-Type: multipart/form-data" \
+     -F "file=@assets/images/image.png"
+
+# 3. 测试PDF处理 (使用测试PDF)
+curl -X POST "http://localhost:8000/upload/pdf" \
+     -H "accept: application/json" \
+     -H "Content-Type: multipart/form-data" \
+     -F "file=@assets/pdfs/simcse.pdf" \
+     -F "provider=zhipu" \
+     -F "process_images=true"
+```
+
+## 🏗️ 架构设计
+
+### 处理模式
+
+- **同步处理**: 文件上传后立即进行处理，无需轮询等待
+- **实时反馈**: 前端直接获取处理结果，包括文件信息和访问URL
+- **错误透明**: 处理失败时立即返回详细错误信息
+
+### 核心组件
+
+- **FastAPI Backend**: 高性能异步Web框架，提供RESTful API
+- **MinerU Engine**: PDF解析核心，支持复杂文档结构
+- **Multi-AI Integration**: 支持多家AI服务商的视觉分析能力
+- **File Management**: 统一的文件处理和存储管理系统
+
+### 安全机制
+
+- **文件类型检查**: 严格的文件格式和大小限制
+- **路径安全**: 防止目录遍历攻击
+- **临时文件清理**: 自动清理处理过程中的临时文件
+- **错误隔离**: 单个文件处理失败不影响其他文件
+
 ## 📡 API 接口说明
 
 ### 🖼️ 图片处理接口
 
-#### `POST /upload/image`
+#### `POST /upload/images`
 
-上传图片文件进行 AI 智能分析
+批量上传图片文件进行 AI 智能分析
 
 **请求参数:**
 
-- **files**: 图片文件 (multipart/form-data)
+- **files**: 图片文件数组 (multipart/form-data)
 - **provider** (可选): AI 提供商 (`guiji`|`zhipu`|`volces`|`openai`)
 - **max_concurrent** (可选): 最大并发数 (默认: 5)
 
@@ -161,23 +212,43 @@ python run_server.py
 
 ```json
 {
-  "message": "图片上传和分析成功",
+  "message": "处理完成。成功: 2, 失败: 0",
   "uploaded_files": [
     {
-      "original_filename": "image.png",
-      "stored_filename": "processed_image.png", 
+      "original_filename": "image1.png",
+      "filename": "abc123def456.png",
+      "saved_filename": "abc123def456.png",
+      "file_path": "/path/to/uploads/images/abc123def456.png",
+      "url": "/uploads/images/abc123def456.png",
       "file_size": 102400,
-      "remote_url": "http://localhost:8000/uploads/images/processed_image.png",
-      "ai_analysis": {
-        "title": "美丽的日落风景",
-        "description": "这是一张展现了温暖日落时分的美丽风景图片..."
-      }
+      "content_type": "image/png"
     }
   ],
-  "processing_info": {
-    "total_files": 1,
-    "successful_uploads": 1,
-    "ai_analysis_completed": true
+  "failed_files": []
+}
+```
+
+#### `POST /upload/image`
+
+上传单个图片文件
+
+**请求参数:**
+
+- **file**: 图片文件 (multipart/form-data)
+
+**响应示例:**
+
+```json
+{
+  "message": "文件上传成功",
+  "file_info": {
+    "original_filename": "image.png",
+    "filename": "xyz789abc123.png",
+    "saved_filename": "xyz789abc123.png",
+    "file_path": "/path/to/uploads/images/xyz789abc123.png",
+    "url": "/uploads/images/xyz789abc123.png",
+    "file_size": 102400,
+    "content_type": "image/png"
   }
 }
 ```
@@ -291,4 +362,5 @@ python tests/test_api_image.py
 | **GUIJI(硅基流动)** | `Pro/Qwen/Qwen2.5-VL-7B-Instruct` | 高性能，支持中文，性价比高 |
 | **智谱AI** | `glm-4v-flash` | 快速响应，中文优化 |
 | **豆包(Volces)** | `doubao-1.5-vision-lite-250315` | 轻量化，成本低 |
-| **OpenAI** | `gpt-4o` | 精度高，功能全面 |
+
+⭐ 如果这个项目对您有帮助，请给我们一个星标！

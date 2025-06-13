@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PDF处理服务{% endblock %}</title>
+    <!-- Ant Design CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/antd@5.12.5/dist/reset.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/antd@5.12.5/dist/antd.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .layout-header {
+            background: #001529;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            height: 64px;
+        }
+        .layout-content {
+            margin-top: 64px;
+            padding: 24px;
+            min-height: calc(100vh - 134px);
+        }
+        .layout-footer {
+            text-align: center;
+            background: #f0f2f5;
+            padding: 24px 0;
+            border-top: 1px solid #e8e8e8;
+        }
+        .logo {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .logo:hover {
+            color: #1890ff;
+        }
+        .nav-menu {
+            display: flex;
+            gap: 0;
+        }
+        .nav-item {
+            color: rgba(255, 255, 255, 0.65);
+            padding: 0 16px;
+            height: 64px;
+            line-height: 64px;
+            text-decoration: none;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-item:hover, .nav-item.active {
+            color: #1890ff;
+            border-bottom-color: #1890ff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            padding: 24px;
+        }
+        .upload-dragger {
+            border: 2px dashed #d9d9d9;
+            border-radius: 8px;
+            background: #fafafa;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            padding: 40px 20px;
+        }
+        .upload-dragger:hover {
+            border-color: #1890ff;
+        }
+        .upload-dragger.ant-upload-drag-hover {
+            border-color: #1890ff;
+            background: #f0f8ff;
+        }
+        .file-preview {
+            margin: 16px 0;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e8e9ea;
+        }
+        .progress-container {
+            margin: 16px 0;
+        }
+        /* Override some Ant Design styles for better appearance */
+        .ant-btn {
+            border-radius: 6px;
+        }
+        .ant-card {
+            border-radius: 8px;
+        }
+        .ant-upload.ant-upload-drag {
+            border-radius: 8px;
+        }
+        .ant-progress {
+            margin: 16px 0;
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <header class="layout-header">
+        <a href="/" class="logo">PDF处理服务</a>
+        <nav class="nav-menu">
+            <a href="/" class="nav-item" data-path="/">首页</a>
+            <a href="/image" class="nav-item" data-path="/image">图片上传</a>
+            <a href="/pdf" class="nav-item" data-path="/pdf">PDF解析</a>
+        </nav>
+    </header>
+
+    <div class="layout-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <footer class="layout-footer">
+        PDF处理服务 © 2024
+    </footer>    <!-- 移除有问题的 Ant Design JS，使用简单的 CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/dayjs.min.js"></script>
+    
+    <script>
+        // Initialize API_BASE_URL from Jinja2 context
+        window.API_BASE_URL = "{{ api_base_url or '' }}";
+        if (!window.API_BASE_URL && window.location.origin) {
+            window.API_BASE_URL = window.location.origin;
+        }
+        console.log("API Base URL:", window.API_BASE_URL);
+
+        // Alert system using Ant Design message
+        let messageApi;
+        
+        // Initialize message API
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof antd !== 'undefined' && antd.message) {
+                messageApi = antd.message;
+            }
+        });
+
+        function showAlert(content, type = 'info', duration = 5) {
+            if (messageApi) {
+                messageApi[type](content, duration);
+            } else {
+                // Fallback to console.log if Ant Design is not loaded
+                console.log(`${type.toUpperCase()}: ${content}`);
+                // Also create a simple alert div
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    z-index: 1001;
+                    padding: 12px 16px;
+                    background: #fff;
+                    border-radius: 6px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    border-left: 4px solid ${type === 'success' ? '#52c41a' : type === 'error' ? '#ff4d4f' : type === 'warning' ? '#faad14' : '#1890ff'};
+                    max-width: 350px;
+                `;
+                alertDiv.textContent = content;
+                document.body.appendChild(alertDiv);
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.parentNode.removeChild(alertDiv);
+                    }
+                }, duration * 1000);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Simple drag and drop setup
+        function setupDragAndDrop(dropZoneId, fileInputId, onFilesAdded) {
+            const dropZone = document.getElementById(dropZoneId);
+            const fileInput = document.getElementById(fileInputId);
+
+            if (!dropZone || !fileInput) {
+                console.warn(`Drag and drop elements not found: ${dropZoneId}, ${fileInputId}`);
+                return;
+            }
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                dropZone.classList.add('ant-upload-drag-hover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('ant-upload-drag-hover');
+            });
+
+            dropZone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dropZone.classList.remove('ant-upload-drag-hover');
+                if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                    fileInput.files = event.dataTransfer.files;
+                    if (onFilesAdded && typeof onFilesAdded === 'function') {
+                        onFilesAdded(event.dataTransfer.files);
+                    }
+                }
+            });
+
+            fileInput.addEventListener('change', (event) => {
+                if (fileInput.files && fileInput.files.length > 0) {
+                     if (onFilesAdded && typeof onFilesAdded === 'function') {
+                        onFilesAdded(fileInput.files);
+                    }
+                }
+            });
+        }
+
+        // Set active navigation item
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navItems = document.querySelectorAll('.nav-item');
+            
+            navItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-path') === currentPath) {
+                    item.classList.add('active');
+                }
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -33,11 +33,25 @@
     "default_max_concurrent_ai": 10,
     "title_max_length": 10,
     "description_max_length": 50
-  },
-  "cors": {
+  },  "cors": {
     "allow_origins": ["*"],
     "allow_credentials": true,
     "allow_methods": ["*"],
     "allow_headers": ["*"]
+  },
+  "frontend": {
+    "max_file_size": 52428800,
+    "supported_image_formats": ["jpg", "jpeg", "png", "gif", "bmp", "webp"],
+    "supported_pdf_formats": ["pdf"],
+    "upload_timeout": 300000,
+    "concurrent_uploads": 3,
+    "auto_save_interval": 30000,
+    "preview_max_height": 400,
+    "notification_duration": {
+      "success": 5000,
+      "error": 8000,
+      "warning": 6000,
+      "info": 5000
+    }
   }
 }

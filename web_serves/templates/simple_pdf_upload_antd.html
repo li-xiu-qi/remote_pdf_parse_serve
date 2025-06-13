@@ -1,0 +1,324 @@
+{% extends "simple_base_antd.html" %}
+
+{% block title %}PDF解析 - 文件处理服务{% endblock %}
+
+{% block head_extra %}
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h1 style="margin-bottom: 24px; color: #262626;">PDF文档解析</h1>
+    
+    <!-- Upload Area -->
+    <div id="pdfUploadArea" class="upload-dragger" style="margin-bottom: 24px;">
+        <div style="padding: 20px;">
+            <div style="font-size: 48px; color: #52c41a; margin-bottom: 16px;">📄</div>
+            <p style="font-size: 16px; margin-bottom: 8px;">将PDF文件拖放到此处，或点击选择文件</p>
+            <p style="color: #8c8c8c; margin: 0;">仅支持单个PDF文件上传</p>
+        </div>
+        <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
+    </div>
+
+    <!-- File Info and Controls -->
+    <div id="fileInfoSection" style="margin-bottom: 24px; display: none;">
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 40px; height: 40px; background: #52c41a; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px; color: white; font-size: 18px;">📄</div>
+                <div style="flex: 1;">
+                    <div id="fileName" style="font-weight: 500; color: #262626; margin-bottom: 2px;"></div>
+                    <div id="fileSize" style="font-size: 12px; color: #8c8c8c;"></div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="parseImagesCheckbox" style="margin-right: 8px;">
+                    <span style="color: #262626;">同时解析PDF中的图片（将增加处理时间）</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <button id="parseBtn" class="ant-btn ant-btn-primary" style="height: 40px; padding: 0 24px; font-size: 14px;">
+                <span id="parseBtnText">开始解析</span>
+            </button>
+            <button id="clearPdfBtn" class="ant-btn" style="height: 40px; padding: 0 16px;">
+                重新选择
+            </button>
+        </div>
+    </div>
+
+    <!-- PDF Preview -->
+    <div id="previewSection" style="margin-bottom: 24px; display: none;">
+        <h3 style="margin-bottom: 16px; color: #262626;">文件预览</h3>
+        <div style="border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden; background: white;">
+            <iframe id="pdfPreview" style="width: 100%; height: 500px; border: none; display: block;"></iframe>
+        </div>
+    </div>
+
+    <!-- Processing Status -->
+    <div id="processingSection" style="margin-bottom: 24px; display: none;">
+        <div style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 8px; padding: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 20px; height: 20px; border: 2px solid #1890ff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px;"></div>
+                <span id="processingText" style="font-weight: 500; color: #0050b3;">正在处理中...</span>
+            </div>
+            <div style="background: #f0f8ff; border-radius: 4px; overflow: hidden; height: 6px; margin-bottom: 8px;">
+                <div id="processingProgress" style="height: 100%; background: #1890ff; width: 0%; transition: width 0.5s ease;"></div>
+            </div>
+            <div id="taskIdInfo" style="font-size: 12px; color: #0050b3;"></div>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #595959;">您可以稍后查看状态，或在此页面等待结果。</p>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsSection" style="display: none;">
+        <h3 style="margin-bottom: 16px; color: #262626;">解析结果</h3>
+        
+        <!-- Markdown Content -->
+        <div style="margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h4 style="margin: 0; color: #262626;">Markdown内容</h4>
+                <button id="copyMarkdownBtn" class="ant-btn ant-btn-link" style="color: #1890ff; padding: 4px 8px;">
+                    📋 复制内容
+                </button>
+            </div>
+            <div style="border: 1px solid #e8e8e8; border-radius: 8px; background: white; max-height: 400px; overflow-y: auto;">
+                <pre id="markdownContent" style="margin: 0; padding: 16px; white-space: pre-wrap; word-wrap: break-word; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.5;"></pre>
+            </div>
+        </div>
+
+        <!-- Extracted Images -->
+        <div id="imagesSection" style="display: none;">
+            <h4 style="margin-bottom: 16px; color: #262626;">提取的图片</h4>
+            <div id="imagesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px;">
+                <!-- Images will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 页面加载前清理所有可能的定时器和请求
+window.addEventListener('beforeunload', function() {
+    console.log('页面卸载，清理资源...');
+    // 清理所有定时器
+    for (let i = 1; i < 9999; i++) {
+        window.clearInterval(i);
+        window.clearTimeout(i);
+    }
+});
+
+// 立即清理任何残留的定时器
+console.log('立即清理残留定时器...');
+for (let i = 1; i < 9999; i++) {
+    window.clearInterval(i);
+    window.clearTimeout(i);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('PDF页面初始化开始...');
+    
+    const uploadArea = document.getElementById('pdfUploadArea');
+    const fileInput = document.getElementById('pdfFileInput');
+    const fileInfoSection = document.getElementById('fileInfoSection');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const parseBtn = document.getElementById('parseBtn');
+    const clearPdfBtn = document.getElementById('clearPdfBtn');
+    const parseBtnText = document.getElementById('parseBtnText');
+    const parseImagesCheckbox = document.getElementById('parseImagesCheckbox');
+    const previewSection = document.getElementById('previewSection');
+    const pdfPreview = document.getElementById('pdfPreview');
+    const processingSection = document.getElementById('processingSection');
+    const processingText = document.getElementById('processingText');    const processingProgress = document.getElementById('processingProgress');
+    const resultsSection = document.getElementById('resultsSection');
+    const markdownContent = document.getElementById('markdownContent');    const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
+    const imagesSection = document.getElementById('imagesSection');
+    const imagesContainer = document.getElementById('imagesContainer');
+
+    let currentFile = null;
+    let isProcessing = false;    console.log('初始化拖拽上传功能...');
+    // Setup drag and drop
+    setupDragAndDrop('pdfUploadArea', 'pdfFileInput', handleFile);
+
+    // 添加额外的点击监听器用于调试
+    if (uploadArea) {
+        uploadArea.addEventListener('click', function() {
+            console.log('上传区域被点击');
+            if (fileInput) {
+                console.log('触发文件选择');
+                fileInput.click();
+            } else {
+                console.error('fileInput 元素不存在');
+            }
+        });
+    } else {
+        console.error('uploadArea 元素不存在');
+    }
+
+    // Clear button
+    clearPdfBtn.addEventListener('click', function() {
+        currentFile = null;
+        fileInput.value = '';
+        fileInfoSection.style.display = 'none';
+        previewSection.style.display = 'none';
+        processingSection.style.display = 'none';
+        resultsSection.style.display = 'none';
+        showAlert('已重新选择文件', 'info');
+    });
+
+    // Parse button
+    parseBtn.addEventListener('click', function() {
+        if (!currentFile || isProcessing) return;
+        startParsing();
+    });
+
+    // Copy markdown button
+    copyMarkdownBtn.addEventListener('click', function() {
+        navigator.clipboard.writeText(markdownContent.textContent).then(() => {
+            showAlert('内容已复制到剪贴板', 'success');
+        }).catch(() => {
+            showAlert('复制失败，请手动选择复制', 'error');
+        });
+    });    function handleFile(files) {
+        console.log('handleFile 被调用，文件数量:', files.length);
+        if (files.length === 0) return;
+        
+        const file = files[0];
+        console.log('选择的文件:', file.name, file.type);
+        
+        if (file.type !== 'application/pdf') {
+            showAlert('请选择一个PDF文件', 'warning');
+            return;
+        }
+
+        currentFile = file;
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfoSection.style.display = 'block';
+        
+        console.log('显示文件信息区域');
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            if (pdfPreview) {
+                pdfPreview.src = e.target.result;
+                previewSection.style.display = 'block';
+                console.log('显示PDF预览');
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Hide previous results
+        processingSection.style.display = 'none';
+        resultsSection.style.display = 'none';
+        
+        showAlert(`已选择文件: ${file.name}`, 'success');
+    }    async function startParsing() {
+        if (!currentFile) return;
+
+        isProcessing = true;
+        parseBtn.disabled = true;
+        parseBtnText.innerHTML = '<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>正在处理...';
+        processingSection.style.display = 'block';
+        processingText.textContent = '正在处理PDF文档...';
+        processingProgress.style.width = '0%';
+
+        const formData = new FormData();
+        formData.append('file', currentFile);
+        formData.append('parse_images', parseImagesCheckbox.checked);
+
+        try {
+            const response = await fetch(`${window.API_BASE_URL}/upload/pdf`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                showAlert(`PDF文件处理成功，处理ID: ${result.processing_id}`, 'success');
+                
+                // 直接显示结果（因为处理是同步的）
+                displayResults(result);
+                processingProgress.style.width = '100%';
+                processingText.textContent = '处理完成！';
+                showAlert('PDF解析完成！', 'success');
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || response.statusText);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            showAlert(`PDF上传失败: ${error.message}`, 'error');
+        } finally {
+            resetProcessingState();
+        }    }
+
+    function displayResults(data) {
+        // 适应新的响应结构
+        markdownContent.textContent = data.markdown_content;
+        resultsSection.style.display = 'block';
+
+        // 检查处理信息中是否包含图片
+        if (data.processing_info && data.processing_info.images_processed) {
+            // 从markdown内容中提取图片文件名
+            const imageMatches = data.markdown_content.match(/!\[.*?\]\((.*?)\)/g);
+            if (imageMatches && imageMatches.length > 0) {
+                imagesContainer.innerHTML = '';
+                imageMatches.forEach(match => {
+                    const urlMatch = match.match(/!\[.*?\]\((.*?)\)/);
+                    if (urlMatch && urlMatch[1]) {
+                        const imageUrl = urlMatch[1];
+                        // 如果是相对路径，转换为完整URL
+                        const fullImageUrl = imageUrl.startsWith('http') ? 
+                            imageUrl : 
+                            `${window.API_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+                        
+                        const imageItem = document.createElement('div');
+                        imageItem.style.cssText = 'border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden; background: white;';
+                        imageItem.innerHTML = `
+                            <img src="${fullImageUrl}" style="width: 100%; height: 120px; object-fit: cover; display: block;" onerror="this.style.display='none'">
+                            <div style="padding: 8px; text-align: center;">
+                                <a href="${fullImageUrl}" target="_blank" style="color: #1890ff; text-decoration: none; font-size: 12px;">查看大图</a>
+                            </div>
+                        `;
+                        imagesContainer.appendChild(imageItem);
+                    }
+                });
+                imagesSection.style.display = 'block';
+            } else {
+                imagesSection.style.display = 'none';
+            }
+        } else {
+            imagesSection.style.display = 'none';
+        }
+
+        // Hide processing section after a delay
+        setTimeout(() => {
+            processingSection.style.display = 'none';
+        }, 2000);
+    }    function resetProcessingState() {
+        isProcessing = false;
+        parseBtn.disabled = false;
+        parseBtnText.textContent = '开始解析';
+    }
+
+    // Add CSS for spinner animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

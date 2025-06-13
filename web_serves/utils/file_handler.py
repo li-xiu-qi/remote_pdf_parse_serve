@@ -99,13 +99,17 @@ class FileHandler:
             
             # 获取文件大小
             file_size = os.path.getsize(file_path)
-            
             logger.info(f"文件保存成功: {file.filename} -> {file_path}")
+            
+            # 构建访问URL - 图片文件的URL路径
+            url_path = f"/uploads/images/{filename}"
             
             return {
                 "original_filename": file.filename,
+                "filename": filename,  # 保持向后兼容
                 "saved_filename": filename,
                 "file_path": str(file_path),
+                "url": url_path,  # 添加URL字段
                 "file_size": file_size,
                 "content_type": file.content_type
             }

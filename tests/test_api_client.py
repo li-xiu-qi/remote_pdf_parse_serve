@@ -138,12 +138,15 @@ def test_pdf_upload(client: ApiClient, pdf_file: Optional[Path]) -> bool:
             print(f"   📄 PDF路径: {file_info.get('pdf_path', 'N/A')}")
             print(f"   📝 Markdown路径: {file_info.get('markdown_path', 'N/A')}")
             print(f"   🔄 处理模式: {file_info.get('process_images', 'N/A')}")
-        
-        # 显示处理统计
+          # 显示处理统计
         if 'processing_info' in result_no_ai:
             proc_info = result_no_ai['processing_info']
             print(f"   📊 PDF转换: {'成功' if proc_info.get('pdf_converted') else '失败'}")
-            print(f"   🖼️ 图片处理: {'成功' if proc_info.get('images_processed') else '失败'}")
+            # 对于不处理图片的模式，显示"跳过"而不是"失败"
+            if result_no_ai.get('file_info', {}).get('process_images', False):
+                print(f"   🖼️ 图片处理: {'成功' if proc_info.get('images_processed') else '失败'}")
+            else:
+                print(f"   🖼️ 图片处理: 跳过（process_images=False）")
         
         success_count += 1
     else:
