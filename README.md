@@ -139,32 +139,114 @@ python utils/download_mineru_models.py
 
 ### 4. 启动服务
 
+#### 🔴 开发模式 (直接启动)
+
 ```bash
 python run_server.py
 ```
 
+#### 🚀 生产模式 (使用 PM2 守护进程)
+
+**安装 PM2:**
+
+```bash
+# 安装 PM2 (全局安装)
+sudo npm install -g pm2
+
+# 或者使用国内镜像
+npm config set registry https://registry.npmmirror.com
+sudo npm install -g pm2
+```
+
+**启动服务:**
+
+```bash
+# 使用 PM2 启动服务
+pm2 start ecosystem.config.js
+
+# 或使用便捷脚本
+./pm2_commands.sh start
+
+# 指定环境启动
+pm2 start ecosystem.config.js --env production
+./pm2_commands.sh env prod
+```
+
+**PM2 管理命令:**
+
+```bash
+# 查看服务状态
+pm2 status
+pm2 describe pdf-parse-server
+
+# 查看日志
+pm2 logs pdf-parse-server
+pm2 logs pdf-parse-server --lines 100
+
+# 重启服务
+pm2 restart pdf-parse-server
+pm2 reload pdf-parse-server  # 零停机重启
+
+# 停止服务
+pm2 stop pdf-parse-server
+
+# 删除服务
+pm2 delete pdf-parse-server
+
+# 监控界面
+pm2 monit
+
+# 设置开机自启
+pm2 startup
+pm2 save
+```
+
+**便捷管理脚本:**
+
+项目提供了 `pm2_commands.sh` 脚本来简化 PM2 操作：
+
+```bash
+# 查看帮助
+./pm2_commands.sh
+
+# 启动服务
+./pm2_commands.sh start
+
+# 查看状态
+./pm2_commands.sh status
+
+# 查看日志
+./pm2_commands.sh logs
+
+# 重启服务
+./pm2_commands.sh restart
+
+# 设置开机自启
+./pm2_commands.sh startup
+```
+
 🎉 服务成功启动后，访问以下地址：
 
-- **🏠 主页**: <http://localhost:8000/>
-- **🖼️ 图片上传**: <http://localhost:8000/image>  
-- **📄 PDF上传**: <http://localhost:8000/pdf>
-- **📚 API文档**: <http://localhost:8000/docs>
-- **📖 ReDoc文档**: <http://localhost:8000/redoc>
+- **🏠 主页**: <http://localhost:10001/>
+- **🖼️ 图片上传**: <http://localhost:10001/image>  
+- **📄 PDF上传**: <http://localhost:10001/pdf>
+- **📚 API文档**: <http://localhost:10001/docs>
+- **📖 ReDoc文档**: <http://localhost:10001/redoc>
 
 ### 🧑‍💻 开发者快速验证
 
 ```bash
 # 1. 测试API健康状态
-curl http://localhost:8000/
+curl http://localhost:10001/
 
 # 2. 测试图片上传 (使用测试图片)
-curl -X POST "http://localhost:8000/upload/image" \
+curl -X POST "http://localhost:10001/upload/image" \
      -H "accept: application/json" \
      -H "Content-Type: multipart/form-data" \
      -F "file=@assets/images/image.png"
 
 # 3. 测试PDF处理 (使用测试PDF)
-curl -X POST "http://localhost:8000/upload/pdf" \
+curl -X POST "http://localhost:10001/upload/pdf" \
      -H "accept: application/json" \
      -H "Content-Type: multipart/form-data" \
      -F "file=@assets/pdfs/simcse.pdf" \
@@ -320,7 +402,7 @@ python tests/test_api_image.py
 {
   "server": {
     "host": "0.0.0.0",        // 服务监听地址
-    "port": 8000,             // 服务端口
+    "port": 10001,            // 服务端口
     "debug": true             // 调试模式
   },
   "api": {
@@ -363,4 +445,113 @@ python tests/test_api_image.py
 | **智谱AI** | `glm-4v-flash` | 快速响应，中文优化 |
 | **豆包(Volces)** | `doubao-1.5-vision-lite-250315` | 轻量化，成本低 |
 
-⭐ 如果这个项目对您有帮助，请给我们一个星标！
+## 🔧 PM2 部署配置详解
+
+### PM2 配置文件说明
+
+项目使用 `ecosystem.config.js` 作为 PM2 的配置文件，包含以下重要配置：
+
+#### 基本配置
+```javascript
+{
+  name: 'pdf-parse-server',          // 应用名称
+  script: 'run_server.py',           // 启动脚本
+  interpreter: '/path/to/python',    // Python 解释器路径
+  cwd: '/path/to/project',           // 工作目录
+  instances: 1,                      // 实例数量
+  max_memory_restart: '48G'          // 内存限制 (48GB)
+}
+```
+
+#### 环境变量配置
+- **开发环境** (`env`): DEBUG 模式，本地访问
+- **生产环境** (`env_production`): 优化配置，对外访问
+- **测试环境** (`env_development`): 调试模式，详细日志
+
+#### 日志配置
+```javascript
+{
+  out_file: './logs/out.log',        // 标准输出日志
+  error_file: './logs/error.log',    // 错误日志
+  log_file: './logs/combined.log',   // 合并日志
+  time: true,                        // 时间戳
+  log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+}
+```
+
+#### 重启策略
+```javascript
+{
+  autorestart: true,                 // 自动重启
+  min_uptime: '30s',                 // 最小运行时间
+  max_restarts: 15,                  // 最大重启次数
+  restart_delay: 4000,               // 重启延迟 (毫秒)
+  kill_timeout: 10000                // 强制停止超时
+}
+```
+
+### 生产环境部署步骤
+
+#### 1. 系统环境准备
+```bash
+# 更新系统
+sudo apt update && sudo apt upgrade -y
+
+# 安装 Node.js (用于 PM2)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# 安装 PM2
+sudo npm install -g pm2
+```
+
+#### 2. Python 环境配置
+```bash
+# 创建专用用户 (可选)
+sudo useradd -m -s /bin/bash pdfservice
+sudo su - pdfservice
+
+# 安装 Miniconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+# 创建项目环境
+conda create -n mineru python=3.10
+conda activate mineru
+
+# 安装依赖
+pip install -r requirements.txt
+```
+
+#### 3. 项目部署
+```bash
+# 克隆项目
+git clone <your-repo-url> /home/pdfservice/pdf-parse-server
+cd /home/pdfservice/pdf-parse-server
+
+# 配置环境变量
+cp .env.example .env
+nano .env  # 配置 API 密钥
+
+# 创建必要目录
+mkdir -p logs uploads/{pdfs,images,markdown} temp
+
+# 设置权限
+chmod +x pm2_commands.sh
+```
+
+#### 4. 启动和配置服务
+```bash
+# 启动服务
+pm2 start ecosystem.config.js --env production
+
+# 设置开机自启
+pm2 startup
+pm2 save
+
+# 配置日志轮转
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 100M
+pm2 set pm2-logrotate:retain 30
+```
+
