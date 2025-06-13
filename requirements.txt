@@ -2,32 +2,34 @@
 # 生成日期: 2025-05-31
 
 # ========== 核心机器学习依赖 ==========
-torch>=2.6.0                    # 深度学习框架，用于AI模型推理
-transformers==4.42.4            # Hugging Face transformers库，用于NLP模型
-unimernet==0.2.3               # 文档解析和OCR工具
+torch                    # 深度学习框架，用于AI模型推理
+transformers            # Hugging Face transformers库，用于NLP模型
+unimernet               # 文档解析和OCR工具
 
 # ========== FastAPI Web框架依赖 ==========
-fastapi>=0.104.1               # 现代化的Python Web框架
-uvicorn[standard]>=0.24.0      # ASGI服务器，用于运行FastAPI应用
-python-multipart>=0.0.6        # 处理multipart/form-data请求（文件上传）
-pydantic>=2.0.0                # 数据验证和设置管理
+fastapi               # 现代化的Python Web框架
+uvicorn[standard]      # ASGI服务器，用于运行FastAPI应用
+python-multipart        # 处理multipart/form-data请求（文件上传）
+pydantic                # 数据验证和设置管理
 
 # ========== 模板引擎 ==========
-jinja2>=3.1.2                  # 模板引擎，用于HTML模板渲染
+jinja2                  # 模板引擎，用于HTML模板渲染
 
 # ========== AI和图像处理依赖 ==========
-openai>=1.0.0                  # OpenAI API客户端，用于AI图像分析
-Pillow>=9.0.0                  # Python图像处理库
+openai                  # OpenAI API客户端，用于AI图像分析
+Pillow                  # Python图像处理库
 
 # ========== PDF处理依赖 ==========
-magic-pdf>=0.5.0               # PDF解析和转换工具
+"magic-pdf[full]"              # PDF解析和转换工具
 
 # ========== 异步和网络请求依赖 ==========
-aiofiles>=22.0.0               # 异步文件I/O操作
-aiohttp>=3.8.0                 # 异步HTTP客户端/服务器
+aiofiles               # 异步文件I/O操作
+aiohttp                 # 异步HTTP客户端/服务器
 
 # ========== 配置和环境管理 ==========
-python-dotenv>=0.19.0          # 环境变量管理
+python-dotenv          # 环境变量管理
 
 # ========== 实用工具 ==========
-pathlib2==2.3.7                # 增强的路径操作工具
+pathlib2                # 增强的路径操作工具
+
+modelscope
