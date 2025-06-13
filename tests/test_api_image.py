@@ -30,6 +30,7 @@ def test_single_image_upload_api():
     images_dir = Path(TEST_IMAGES_DIR)
     image_files = list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.jpeg"))
     if not image_files:
+        print("⚠️ 未找到测试图片，跳过单图上传测试")
         return False
     test_image = image_files[0]
     content_type = 'image/png' if test_image.suffix.lower() == '.png' else \
@@ -39,11 +40,15 @@ def test_single_image_upload_api():
         with open(test_image, 'rb') as f:
             files = {'file': (test_image.name, f, content_type)}
             response = requests.post(f"{API_BASE_URL}/upload/image", files=files, timeout=30)
+            print(f"[单图上传] 状态码: {response.status_code}")
             if response.status_code == 200:
+                print(f"✅ 单图上传成功: {test_image.name}")
                 return True
             else:
+                print(f"❌ 单图上传失败: {response.text}")
                 return False
-    except Exception:
+    except Exception as e:
+        print(f"❌ 单图上传异常: {e}")
         return False
 
 
@@ -52,6 +57,7 @@ def test_multiple_images_upload_api():
     images_dir = Path(TEST_IMAGES_DIR)
     image_files = list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.jpeg"))
     if not image_files:
+        print("⚠️ 未找到测试图片，跳过多图上传测试")
         return False
     test_images = image_files[:3]
     try:
@@ -67,20 +73,21 @@ def test_multiple_images_upload_api():
         response = requests.post(f"{API_BASE_URL}/upload/images", files=files_to_send, timeout=60)
         for file_obj in opened_files:
             file_obj.close()
+        print(f"[多图上传] 状态码: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
             uploaded_files = result.get('uploaded_files', [])
             failed_files = result.get('failed_files', [])
-            if len(uploaded_files) == len(test_images) and not failed_files:
-                return True
-            else:
-                return False
+            print(f"✅ 多图上传成功: 成功{len(uploaded_files)}，失败{len(failed_files)}")
+            if failed_files:
+                print(f"   失败文件: {[f.get('original_filename') for f in failed_files]}")
+            return len(uploaded_files) == len(test_images) and not failed_files
         else:
+            print(f"❌ 多图上传失败: {response.text}")
             return False
-    except Exception:
+    except Exception as e:
+        print(f"❌ 多图上传异常: {e}")
         return False
-
-
 
 
 def test_image_upload_api():
@@ -88,10 +95,11 @@ def test_image_upload_api():
     images_dir = Path(TEST_IMAGES_DIR)
     image_files = list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.jpeg"))
     if not image_files:
+        print("⚠️ 未找到任何测试图片，跳过全部图片上传测试")
         return False
     success_single = test_single_image_upload_api()
     success_multiple = test_multiple_images_upload_api()
-    return success_single and success_multiple 
+    return success_single and success_multiple
 
 
 if __name__ == "__main__":

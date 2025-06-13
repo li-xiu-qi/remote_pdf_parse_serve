@@ -108,18 +108,21 @@ def test_pdf_upload_api():
     print(f"🌐 测试地址: {API_BASE_URL}")
     
     # 测试开启图片处理
-    # success1 = test_pdf_upload_with_params(True, "开启图片处理")
-    
+    success1 = test_pdf_upload_with_params(True, "开启图片处理")
     # 测试不开启图片处理
     success2 = test_pdf_upload_with_params(False, "不开启图片处理")
     
     print("\n" + "=" * 60)
     print("PDF解析API接口测试结果:")
-    # print(f"开启图片处理: {'成功' if success1 else '失败'}")
+    print(f"开启图片处理: {'成功' if success1 else '失败'}")
     print(f"不开启图片处理: {'成功' if success2 else '失败'}")
     print("🚀 PDF解析API接口测试完成!")
-    # return success1 and success2
+    return success1 and success2
 
 
 if __name__ == "__main__":
-    test_pdf_upload_api()
+    result = test_pdf_upload_api()
+    if result:
+        print("OK")
+    else:
+        print("FAIL")

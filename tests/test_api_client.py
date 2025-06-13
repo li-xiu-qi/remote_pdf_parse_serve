@@ -6,7 +6,8 @@
 from pathlib import Path
 import sys
 import json
-import os # 用于获取环境变量
+import os
+from typing import List, Optional
 
 # 将项目根目录添加到sys.path，以便导入 utils.api_client
 project_root = Path(__file__).resolve().parent.parent
@@ -19,104 +20,265 @@ except ImportError:
     sys.exit(1)
 
 # API基础URL的确定逻辑
-# 优先从环境变量获取，然后尝试从项目配置（如果可用），最后使用默认值
-API_HOST = os.environ.get("API_HOST", "localhost")
-API_PORT = os.environ.get("API_PORT", "8000")
-API_BASE_URL = f"http://{API_HOST}:{API_PORT}"
+def get_api_base_url() -> str:
+    """获取API基础URL，优先级：环境变量 > 项目配置 > 默认值"""
+    # 优先从环境变量获取
+    api_host = os.environ.get("API_HOST", "localhost")
+    api_port = os.environ.get("API_PORT", "8000")
+    api_base_url = f"http://{api_host}:{api_port}"
+    
+    # 尝试从项目配置中读取
+    try:
+        from web_serves.config import SERVER_CONFIG
+        host_config = SERVER_CONFIG.get('host', 'localhost')
+        port_config = SERVER_CONFIG.get('port', 8000)
+        if host_config == "0.0.0.0":  # 在服务器配置中，0.0.0.0 意味着监听所有接口，客户端应连接到 localhost
+            host_config = "localhost"
+        api_base_url = f"http://{host_config}:{port_config}"
+        print(f"✅ 使用来自 web_serves.config 的 API_BASE_URL: {api_base_url}")
+    except (ImportError, KeyError) as e:
+        print(f"⚠️ 未找到 web_serves.config 或其配置不完整，使用默认/环境变量 API_BASE_URL: {api_base_url}")
+    
+    return api_base_url
 
-# 尝试从项目配置中读取（如果测试环境需要）
-# 注意：这会重新引入对项目内部结构的依赖，如果希望测试脚本更通用，则应避免
-try:
-    from web_serves.config import SERVER_CONFIG
-    host_config = SERVER_CONFIG.get('host', 'localhost')
-    port_config = SERVER_CONFIG.get('port', 8000)
-    if host_config == "0.0.0.0": # 在服务器配置中，0.0.0.0 意味着监听所有接口，客户端应连接到 localhost
-        host_config = "localhost"
-    API_BASE_URL = f"http://{host_config}:{port_config}"
-    print(f"使用来自 web_serves.config 的 API_BASE_URL: {API_BASE_URL}")
-except (ImportError, KeyError):
-    print(f"未找到 web_serves.config 或其配置不完整，将使用默认或环境变量定义的 API_BASE_URL: {API_BASE_URL}")
+def find_test_files() -> tuple[List[Path], Optional[Path]]:
+    """查找测试文件，返回图片文件列表和PDF文件路径"""
+    assets_dir = project_root / "assets"
+    test_images_dir = assets_dir / "images"
+    test_pdfs_dir = assets_dir / "pdfs"
+    
+    # 查找测试图片
+    image_extensions = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"]
+    image_files = []
+    for ext in image_extensions:
+        image_files.extend(list(test_images_dir.glob(ext)))
+    
+    # 转换为绝对路径
+    absolute_image_files = [img.resolve() for img in image_files]
+    
+    # 查找测试PDF
+    test_pdf_file = (test_pdfs_dir / "simcse.pdf").resolve()
+    pdf_file = test_pdf_file if test_pdf_file.is_file() else None
+    
+    return absolute_image_files, pdf_file
 
+def test_single_image_upload(client: ApiClient, image_files: List[Path]) -> bool:
+    """测试单个图片上传"""
+    if not image_files:
+        print("⚠️ 没有找到测试图片文件，跳过单个图片上传测试")
+        return False
+    
+    print("\n-- 测试单个图片上传 --")
+    test_image = image_files[0]
+    print(f"📤 选定的测试图片: {test_image.name}")
+    
+    result = client.upload_single_image(test_image)
+    if result:
+        print("✅ 单个图片上传测试通过")
+        print(f"   📄 响应摘要: {result.get('message', 'N/A')}")
+        if 'file_info' in result:
+            file_info = result['file_info']
+            print(f"   🔗 文件URL: {file_info.get('url', 'N/A')}")
+        return True
+    else:
+        print("❌ 单个图片上传测试失败")
+        return False
 
-# 测试资源文件目录 (相对于项目根目录)
-ASSETS_DIR = project_root / "assets"
-TEST_IMAGES_DIR = ASSETS_DIR / "images"
-TEST_PDFS_DIR = ASSETS_DIR / "pdfs"
+def test_multiple_images_upload(client: ApiClient, image_files: List[Path]) -> bool:
+    """测试多个图片上传（仅文件存储，无AI分析）"""
+    if len(image_files) < 1:
+        print("⚠️ 需要至少1张图片进行多图片上传测试")
+        return False
+    
+    print("\n-- 测试多个图片上传（文件存储模式）--")
+    # 最多上传3张图片进行测试
+    test_images = image_files[:min(3, len(image_files))]
+    print(f"📤 选定的测试图片: {[img.name for img in test_images]}")
+    print("ℹ️ 注意: 当前版本的批量图片上传仅进行文件存储，不包含AI分析")
+    
+    result = client.upload_multiple_images(test_images)
+    if result:
+        uploaded_count = len(result.get('uploaded_files', []))
+        failed_count = len(result.get('failed_files', []))
+        print(f"✅ 多个图片上传测试通过: 成功 {uploaded_count} 张，失败 {failed_count} 张")
+        
+        # 显示上传成功的文件信息
+        for uploaded_file in result.get('uploaded_files', [])[:2]:  # 只显示前2个
+            print(f"   📄 {uploaded_file.get('original_filename', 'N/A')} -> {uploaded_file.get('url', 'N/A')}")
+        
+        # 显示失败文件信息（如果有）
+        for failed_file in result.get('failed_files', []):
+            print(f"   ❌ 失败: {failed_file.get('filename', 'N/A')} - {failed_file.get('error', 'N/A')}")
+        
+        return uploaded_count > 0
+    else:
+        print("❌ 多个图片上传测试失败")
+        return False
 
+def test_pdf_upload(client: ApiClient, pdf_file: Optional[Path]) -> bool:
+    """测试PDF上传和处理（包含两种模式）"""
+    if not pdf_file:
+        print("⚠️ 没有找到测试PDF文件，跳过PDF上传测试")
+        return False
+    
+    print("\n-- 测试PDF上传与处理 --")
+    print(f"📄 选定的测试PDF: {pdf_file.name}")
+    
+    # 测试1: 不处理图片（仅PDF转Markdown）
+    print("\n🔍 测试模式1: 仅PDF转Markdown（process_images=False）")
+    result_no_ai = client.upload_pdf(pdf_file, process_images=False)
+    
+    success_count = 0
+    
+    if result_no_ai:
+        print("✅ PDF转换测试通过（无AI分析）")
+        print(f"   📄 响应摘要: {result_no_ai.get('message', 'N/A')}")
+        if 'file_info' in result_no_ai:
+            file_info = result_no_ai['file_info']
+            print(f"   📄 PDF路径: {file_info.get('pdf_path', 'N/A')}")
+            print(f"   📝 Markdown路径: {file_info.get('markdown_path', 'N/A')}")
+            print(f"   🔄 处理模式: {file_info.get('process_images', 'N/A')}")
+        
+        # 显示处理统计
+        if 'processing_info' in result_no_ai:
+            proc_info = result_no_ai['processing_info']
+            print(f"   📊 PDF转换: {'成功' if proc_info.get('pdf_converted') else '失败'}")
+            print(f"   🖼️ 图片处理: {'成功' if proc_info.get('images_processed') else '失败'}")
+        
+        success_count += 1
+    else:
+        print("❌ PDF转换测试失败（无AI分析）")
+    
+    # 测试2: 处理图片（PDF转Markdown + AI图片分析）
+    print("\n🔍 测试模式2: PDF转Markdown + AI图片分析（process_images=True）")
+    result_with_ai = client.upload_pdf(
+        pdf_file, 
+        provider="zhipu",  # 使用智谱AI
+        process_images=True,
+        max_concurrent=3
+    )
+    
+    if result_with_ai:
+        print("✅ PDF处理测试通过（含AI分析）")
+        print(f"   📄 响应摘要: {result_with_ai.get('message', 'N/A')}")
+        if 'file_info' in result_with_ai:
+            file_info = result_with_ai['file_info']
+            print(f"   🤖 AI提供商: {file_info.get('provider', 'N/A')}")
+            print(f"   🔄 处理模式: {file_info.get('process_images', 'N/A')}")
+        
+        # 显示处理统计
+        if 'processing_info' in result_with_ai:
+            proc_info = result_with_ai['processing_info']
+            print(f"   📊 PDF转换: {'成功' if proc_info.get('pdf_converted') else '失败'}")
+            print(f"   🖼️ 图片AI分析: {'成功' if proc_info.get('images_processed') else '失败'}")
+        
+        success_count += 1
+    else:
+        print("❌ PDF处理测试失败（含AI分析）")
+    
+    print(f"\n📊 PDF测试结果: {success_count}/2 种模式成功")
+    return success_count > 0
+
+def main():
+    """主测试函数"""
+    print("=" * 60)
+    print("🧪 ApiClient 完整功能测试 (来自 utils.api_client)")
+    print("=" * 60)
+    
+    # 获取API URL
+    api_base_url = get_api_base_url()
+    print(f"🌐 目标 API 服务器: {api_base_url}")
+    
+    # 创建客户端
+    client = ApiClient(base_url=api_base_url)
+    
+    # 检查服务器健康状态
+    print(f"\n🔍 检查服务器健康状态...")
+    if not client.health_check():
+        print(f"❌ 服务器不可访问: {api_base_url}")
+        print("   请确保服务器正在运行，然后重试")
+        print("   启动命令: python run_server.py")
+        return False
+    else:
+        print(f"✅ 服务器正常运行")
+    
+    # 查找测试文件
+    image_files, pdf_file = find_test_files()
+    print(f"\n📁 测试资源统计:")
+    print(f"   🖼️ 找到图片文件: {len(image_files)} 个")
+    print(f"   📄 找到PDF文件: {'是' if pdf_file else '否'}")
+    
+    if image_files:
+        print(f"   📋 图片列表: {[img.name for img in image_files[:3]]}{'...' if len(image_files) > 3 else ''}")
+    if pdf_file:
+        print(f"   📋 PDF文件: {pdf_file.name}")
+    
+    # 执行测试
+    test_results = []
+      # 测试图片上传
+    if image_files:
+        print("\n" + "=" * 40)
+        print("🖼️ 图片上传测试")
+        print("=" * 40)
+        
+        single_result = test_single_image_upload(client, image_files)
+        multiple_result = test_multiple_images_upload(client, image_files)
+        
+        test_results.extend([single_result, multiple_result])
+    else:
+        print("\n⚠️ 未找到测试图片，跳过图片上传测试")
+        print(f"   请在 {project_root / 'assets' / 'images'} 目录中添加测试图片")
+        print("   支持格式: PNG, JPG, JPEG, GIF, BMP, WebP")
+    
+    # 测试PDF上传
+    if pdf_file:
+        print("\n" + "=" * 40)
+        print("📄 PDF处理测试")
+        print("=" * 40)
+        
+        pdf_result = test_pdf_upload(client, pdf_file)
+        test_results.append(pdf_result)
+    else:
+        print("\n⚠️ 未找到测试PDF，跳过PDF处理测试")
+        print(f"   请在 {project_root / 'assets' / 'pdfs'} 目录中添加 'simcse.pdf' 文件")
+      # 测试结果汇总
+    print("\n" + "=" * 60)
+    print("📊 测试结果汇总")
+    print("=" * 60)
+    
+    if not test_results:
+        print("⚠️ 没有执行任何测试，请检查测试文件是否存在")
+        print("   需要的测试文件:")
+        print("   - 图片文件: assets/images/ 目录下的 PNG/JPG 等格式文件")
+        print("   - PDF文件: assets/pdfs/simcse.pdf")
+        return False
+    
+    passed_tests = sum(test_results)
+    total_tests = len(test_results)
+    
+    print(f"✅ 通过测试: {passed_tests}/{total_tests}")
+    print(f"❌ 失败测试: {total_tests - passed_tests}/{total_tests}")
+    
+    # 测试分类统计
+    test_categories = []
+    if image_files:
+        test_categories.extend(["单图上传", "批量图片上传"])
+    if pdf_file:
+        test_categories.append("PDF处理")
+    
+    print(f"📋 测试覆盖范围: {', '.join(test_categories)}")
+    
+    if passed_tests == total_tests:
+        print("🎉 所有测试通过！API客户端功能正常")
+        return True
+    else:
+        print("⚠️ 部分测试失败，请检查上述错误信息")
+        print("💡 常见解决方案:")
+        print("   - 确保服务器正在运行")
+        print("   - 检查测试文件是否存在")
+        print("   - 验证API密钥配置（PDF AI分析功能）")
+        return False
 
 if __name__ == "__main__":
-    print(f"--- 开始测试 ApiClient (来自 utils.api_client) ---")
-    print(f"目标 API 服务器: {API_BASE_URL}")
-    print(f"测试资源图片目录: {TEST_IMAGES_DIR}")
-    print(f"测试资源PDF目录: {TEST_PDFS_DIR}")
-
-    client = ApiClient(base_url=API_BASE_URL)
-
-    # --- 测试图片上传 ---
-    print("\n--- 测试图片上传 ---")
-    
-    # 查找测试图片 (确保使用绝对路径)
-    image_files_glob = list(TEST_IMAGES_DIR.glob("*.png")) + \
-                       list(TEST_IMAGES_DIR.glob("*.jpg")) + \
-                       list(TEST_IMAGES_DIR.glob("*.jpeg"))
-
-    # 转换为绝对路径列表
-    absolute_image_files = [img.resolve() for img in image_files_glob]
-
-    if not absolute_image_files:
-        print(f"⚠️ 未在 {TEST_IMAGES_DIR} 中找到测试图片，跳过图片上传测试。")
-    else:
-        # 1. 测试单个图片上传
-        print("\n-- 测试单个图片上传 --")
-        test_image_single = absolute_image_files[0]
-        print(f"选定的单个测试图片: {test_image_single}")
-        single_image_result = client.upload_single_image(test_image_single)
-        if single_image_result:
-            print(f"单个图片上传结果: {json.dumps(single_image_result, indent=2, ensure_ascii=False)}")
-        else:
-            print(f"单个图片上传 ({test_image_single.name}) 失败或无结果返回。")
-
-        # 2. 测试多个图片上传
-        print("\n-- 测试多个图片上传 --")
-        # 最多上传3张，或所有找到的图片（如果少于3张）
-        test_images_multiple = absolute_image_files[:min(3, len(absolute_image_files))]
-        
-        if len(test_images_multiple) < 1:
-            print("⚠️ 测试多图片上传需要至少1张图片。")
-        else:
-            print(f"选定的多个测试图片: {[img.name for img in test_images_multiple]}")
-            multiple_images_result = client.upload_multiple_images(test_images_multiple)
-            if multiple_images_result:
-                print(f"多个图片上传结果: {json.dumps(multiple_images_result, indent=2, ensure_ascii=False)}")
-            else:
-                print(f"多个图片上传失败或无结果返回。")
-    print("--- 图片上传测试结束 ---")
-
-    # --- 测试PDF上传 ---
-    print("\n--- 测试PDF上传 ---")
-    test_pdf_file = (TEST_PDFS_DIR / "simcse.pdf").resolve() 
-
-    if not test_pdf_file.is_file():
-        print(f"⚠️ 未在 {TEST_PDFS_DIR} 中找到测试PDF 'simcse.pdf' ({test_pdf_file})，跳过PDF上传测试。")
-    else:
-        print(f"选定的测试PDF: {test_pdf_file}")
-        # 1. 测试PDF上传（不处理图片）
-        print("\n-- 测试PDF上传 (不处理图片) --")
-        pdf_result_no_images = client.upload_pdf(test_pdf_file, process_images=False)
-        if pdf_result_no_images:
-            print(f"PDF上传 (不处理图片) 结果: {json.dumps(pdf_result_no_images, indent=2, ensure_ascii=False)}")
-        else:
-            print(f"PDF上传 (不处理图片) ({test_pdf_file.name}) 失败或无结果返回。")
-
-        # 2. 测试PDF上传（处理图片）
-        # 注意：处理图片可能需要更长的时间，并且依赖于AI提供商的配置
-        # print("\n-- 测试PDF上传 (处理图片) --")
-        # pdf_result_with_images = client.upload_pdf(test_pdf_file, process_images=True)
-        # if pdf_result_with_images:
-        #     print(f"PDF上传 (处理图片) 结果: {json.dumps(pdf_result_with_images, indent=2, ensure_ascii=False)}")
-        # else:
-        #     print(f"PDF上传 (处理图片) ({test_pdf_file.name}) 失败或无结果返回。")
-
-    print("--- PDF上传测试结束 ---")
-
-    print("\n所有测试执行完毕。请检查上面的输出以确认结果。")
+    success = main()
+    sys.exit(0 if success else 1)
