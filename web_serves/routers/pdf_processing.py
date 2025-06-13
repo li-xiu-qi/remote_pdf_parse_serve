@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, Body, Query # Added Query
+from fastapi import APIRouter, File, UploadFile, HTTPException, Body, Query, Form # Added Query and Form
 from fastapi.responses import JSONResponse
 
 from web_serves.pdf_utils.mineru_parse import mineru_pdf2md
@@ -31,9 +31,9 @@ router = APIRouter(prefix="/upload", tags=["PDF处理"])
 @router.post("/pdf")
 async def upload_and_process_pdf(
     file: UploadFile = File(...),
-    provider: str = DEFAULT_IMAGE_PROVIDER, 
-    max_concurrent: int = DEFAULT_MAX_CONCURRENT_AI,
-    process_images: bool = True  
+    provider: str = Form(default=DEFAULT_IMAGE_PROVIDER), 
+    max_concurrent: int = Form(default=DEFAULT_MAX_CONCURRENT_AI),
+    parse_images: bool = Form(default=True)  
 ):
     """
     上传PDF文件，转换为Markdown，并可选择性处理图片
@@ -42,7 +42,7 @@ async def upload_and_process_pdf(
         file: 要上传的PDF文件
         provider: AI视觉模型提供商 (guiji, zhipu, volces, openai)
         max_concurrent: 最大并发处理数
-        process_images: 是否对Markdown中的图片进行AI分析和处理
+        parse_images: 是否对Markdown中的图片进行AI分析和处理
         
     Returns:
         包含处理后的Markdown内容的JSON响应
@@ -50,7 +50,7 @@ async def upload_and_process_pdf(
     print("上传的文件名:", file.filename)  # Debugging line to check uploaded file name
     print("provider:", provider)  # Debugging line to check provider value
     
-    print("process_images目前设置的参数是:", process_images)  # Debugging line to check process_images value
+    print("parse_images目前设置的参数是:", parse_images)  # Debugging line to check parse_images value
     remote_base_url = f"{get_api_base_url()}/uploads/images/"
     storage_paths = get_storage_paths()
     processing_id = uuid.uuid4().hex
@@ -80,8 +80,8 @@ async def upload_and_process_pdf(
             return_path=False  # 直接返回内容而不是路径
         )
         
-        # 根据process_images参数决定是否处理图片
-        if process_images:
+        # 根据parse_images参数决定是否处理图片
+        if parse_images:
             # 处理Markdown中的图片
             print("开始处理Markdown中的图片...")
             try:
@@ -139,12 +139,12 @@ async def upload_and_process_pdf(
                     "markdown_path": str(markdown_path.relative_to(storage_paths["markdown_dir"].parent)) if storage_paths["keep_markdown_files"] else None,
                     "creation_time": creation_time,
                     "provider": provider,
-                    "process_images": process_images  # 添加到响应中
+                    "parse_images": parse_images  # 添加到响应中
                 },
                 "markdown_content": processed_markdown,
                 "processing_info": {
                     "pdf_converted": True,
-                    "images_processed": process_images and "images" in processed_markdown.lower(),  # 更准确的判断
+                    "images_processed": parse_images and "images" in processed_markdown.lower(),  # 更准确的判断
                     "remote_base_url": remote_base_url,
                     "temp_directory_cleaned": True
                 }

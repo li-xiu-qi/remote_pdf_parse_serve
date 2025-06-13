@@ -234,6 +234,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('file', currentFile);
         formData.append('parse_images', parseImagesCheckbox.checked);
+        
+        console.log('parse_images checkbox状态:', parseImagesCheckbox.checked);
+        console.log('发送的parse_images值:', formData.get('parse_images'));
 
         try {
             const response = await fetch(`${window.API_BASE_URL}/upload/pdf`, {
