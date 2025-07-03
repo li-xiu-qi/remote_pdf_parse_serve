@@ -1,0 +1,368 @@
+{% extends "simple_base_antd.html" %}
+
+{% block title %}批量PDF解析 - 文件处理服务{% endblock %}
+
+{% block head_extra %}
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="margin-bottom: 24px; color: #262626;">批量PDF文档解析</h1>
+    
+    <!-- Upload Area -->
+    <div id="pdfUploadArea" class="upload-dragger" style="margin-bottom: 24px;">
+        <div style="padding: 20px;">
+            <div style="font-size: 48px; color: #52c41a; margin-bottom: 16px;">📄</div>
+            <p style="font-size: 16px; margin-bottom: 8px;">将PDF文件拖放到此处，或点击选择文件</p>
+            <p style="color: #8c8c8c; margin: 0;">支持批量上传多个PDF文件</p>
+        </div>
+        <input type="file" id="pdfFileInput" accept=".pdf" multiple style="display: none;">
+    </div>
+
+    <!-- File List and Controls -->
+    <div id="fileListSection" style="margin-bottom: 24px; display: none;">
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 12px 0; color: #262626;">已选择的文件</h4>
+            <div id="fileList" style="max-height: 200px; overflow-y: auto;">
+                <!-- File list will be populated here -->
+            </div>
+            
+            <div style="margin: 16px 0;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 12px;">
+                    <input type="checkbox" id="parseImagesCheckbox" style="margin-right: 8px;">
+                    <span style="color: #262626;">同时解析PDF中的图片（将增加处理时间）</span>
+                </label>
+                
+                <!-- 解析后端选择 -->
+                <div style="margin-bottom: 12px;">
+                    <label for="backendSelect" style="color: #262626; margin-bottom: 6px; display: block; font-size: 14px;">解析后端：</label>
+                    <select id="backendSelect" style="width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px;">
+                        <option value="pipeline">Pipeline（通用）</option>
+                        <option value="vlm-transformers">VLM-Transformers（通用）</option>
+                        <option value="vlm-sglang-engine">VLM-SGLang-Engine（更快）</option>
+                    </select>
+                </div>
+                
+                <!-- 解析方法选择 -->
+                <div style="margin-bottom: 12px;">
+                    <label for="methodSelect" style="color: #262626; margin-bottom: 6px; display: block; font-size: 14px;">解析方法：</label>
+                    <select id="methodSelect" style="width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px;">
+                        <option value="auto">自动选择</option>
+                        <option value="txt">文本提取</option>
+                        <option value="ocr">OCR识别</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <button id="parseBtn" class="ant-btn ant-btn-primary" style="height: 40px; padding: 0 24px; font-size: 14px;">
+                <span id="parseBtnText">开始批量解析</span>
+            </button>
+            <button id="clearPdfBtn" class="ant-btn" style="height: 40px; padding: 0 16px;">
+                重新选择
+            </button>
+        </div>
+    </div>
+
+    <!-- Processing Status -->
+    <div id="processingSection" style="margin-bottom: 24px; display: none;">
+        <div style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 8px; padding: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 20px; height: 20px; border: 2px solid #1890ff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px;"></div>
+                <span id="processingText" style="font-weight: 500; color: #0050b3;">正在批量处理中...</span>
+            </div>
+            <div style="background: #f0f8ff; border-radius: 4px; overflow: hidden; height: 6px; margin-bottom: 8px;">
+                <div id="processingProgress" style="height: 100%; background: #1890ff; width: 0%; transition: width 0.5s ease;"></div>
+            </div>
+            <div id="taskIdInfo" style="font-size: 12px; color: #0050b3;"></div>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #595959;">您可以稍后查看状态，或在此页面等待结果。</p>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsSection" style="display: none;">
+        <h3 style="margin-bottom: 16px; color: #262626;">批量解析结果</h3>
+        
+        <!-- Summary -->
+        <div id="summarySection" style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <h4 style="margin: 0 0 8px 0; color: #389e0d;">处理汇总</h4>
+            <div id="summaryContent"></div>
+        </div>
+        
+        <!-- Individual Results -->
+        <div id="individualResults">
+            <!-- Individual document results will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 页面加载前清理所有可能的定时器和请求
+window.addEventListener('beforeunload', function() {
+    console.log('页面卸载，清理资源...');
+    // 清理所有定时器
+    for (let i = 1; i < 9999; i++) {
+        window.clearInterval(i);
+        window.clearTimeout(i);
+    }
+});
+
+// 立即清理任何残留的定时器
+console.log('立即清理残留定时器...');
+for (let i = 1; i < 9999; i++) {
+    window.clearInterval(i);
+    window.clearTimeout(i);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('批量PDF页面初始化开始...');
+    
+    const uploadArea = document.getElementById('pdfUploadArea');
+    const fileInput = document.getElementById('pdfFileInput');
+    const fileListSection = document.getElementById('fileListSection');
+    const fileList = document.getElementById('fileList');
+    const parseBtn = document.getElementById('parseBtn');
+    const clearPdfBtn = document.getElementById('clearPdfBtn');
+    const parseBtnText = document.getElementById('parseBtnText');
+    const parseImagesCheckbox = document.getElementById('parseImagesCheckbox');
+    const backendSelect = document.getElementById('backendSelect');
+    const methodSelect = document.getElementById('methodSelect');
+    const processingSection = document.getElementById('processingSection');
+    const processingText = document.getElementById('processingText');
+    const processingProgress = document.getElementById('processingProgress');
+    const resultsSection = document.getElementById('resultsSection');
+    const summaryContent = document.getElementById('summaryContent');
+    const individualResults = document.getElementById('individualResults');
+
+    let currentFiles = [];
+    let isProcessing = false;
+
+    console.log('初始化拖拽上传功能...');
+    // Setup drag and drop
+    setupDragAndDrop('pdfUploadArea', 'pdfFileInput', handleFiles);
+
+    // 添加额外的点击监听器用于调试
+    if (uploadArea) {
+        uploadArea.addEventListener('click', function() {
+            console.log('上传区域被点击');
+            if (fileInput) {
+                console.log('触发文件选择');
+                fileInput.click();
+            } else {
+                console.error('fileInput 元素不存在');
+            }
+        });
+    } else {
+        console.error('uploadArea 元素不存在');
+    }
+
+    // Clear button
+    clearPdfBtn.addEventListener('click', function() {
+        currentFiles = [];
+        fileInput.value = '';
+        fileListSection.style.display = 'none';
+        processingSection.style.display = 'none';
+        resultsSection.style.display = 'none';
+        showAlert('已重新选择文件', 'info');
+    });
+
+    // Parse button
+    parseBtn.addEventListener('click', function() {
+        if (currentFiles.length === 0 || isProcessing) return;
+        startParsing();
+    });
+
+    function handleFiles(files) {
+        console.log('handleFiles 被调用，文件数量:', files.length);
+        if (files.length === 0) return;
+        
+        // 过滤PDF文件
+        const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf');
+        
+        if (pdfFiles.length === 0) {
+            showAlert('请选择PDF文件', 'warning');
+            return;
+        }
+
+        if (pdfFiles.length !== files.length) {
+            showAlert(`已过滤掉 ${files.length - pdfFiles.length} 个非PDF文件`, 'warning');
+        }
+
+        currentFiles = pdfFiles;
+        updateFileList();
+        fileListSection.style.display = 'block';
+        
+        // Hide previous results
+        processingSection.style.display = 'none';
+        resultsSection.style.display = 'none';
+        
+        showAlert(`已选择 ${pdfFiles.length} 个PDF文件`, 'success');
+    }
+
+    function updateFileList() {
+        fileList.innerHTML = '';
+        currentFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #e8e8e8; margin-bottom: 8px;';
+            fileItem.innerHTML = `
+                <div style="width: 32px; height: 32px; background: #52c41a; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin-right: 12px; color: white; font-size: 14px;">📄</div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 500; color: #262626; margin-bottom: 2px;">${file.name}</div>
+                    <div style="font-size: 12px; color: #8c8c8c;">${formatFileSize(file.size)}</div>
+                </div>
+                <button onclick="removeFile(${index})" style="background: none; border: none; color: #ff4d4f; cursor: pointer; padding: 4px; font-size: 16px;">✕</button>
+            `;
+            fileList.appendChild(fileItem);
+        });
+    }
+
+    window.removeFile = function(index) {
+        currentFiles.splice(index, 1);
+        if (currentFiles.length === 0) {
+            fileListSection.style.display = 'none';
+        } else {
+            updateFileList();
+        }
+        showAlert('文件已移除', 'info');
+    };
+
+    async function startParsing() {
+        if (currentFiles.length === 0) return;
+
+        isProcessing = true;
+        parseBtn.disabled = true;
+        parseBtnText.innerHTML = '<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>正在处理...';
+        processingSection.style.display = 'block';
+        processingText.textContent = `正在处理 ${currentFiles.length} 个PDF文档...`;
+        processingProgress.style.width = '0%';
+
+        const formData = new FormData();
+        currentFiles.forEach(file => {
+            formData.append('files', file);
+        });
+        formData.append('parse_images', parseImagesCheckbox.checked);
+        formData.append('backend', backendSelect.value);
+        formData.append('method', methodSelect.value);
+        
+        console.log('批量处理参数:');
+        console.log('文件数量:', currentFiles.length);
+        console.log('parse_images:', parseImagesCheckbox.checked);
+        console.log('backend:', backendSelect.value);
+        console.log('method:', methodSelect.value);
+
+        try {
+            const response = await fetch(`${window.API_BASE_URL}/upload/pdfs`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                showAlert(`批量PDF处理成功，任务ID: ${result.task_id}`, 'success');
+                
+                // 显示结果
+                displayBatchResults(result);
+                processingProgress.style.width = '100%';
+                processingText.textContent = '批量处理完成！';
+                showAlert('批量PDF解析完成！', 'success');
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || response.statusText);
+            }
+        } catch (error) {
+            console.error('Batch upload error:', error);
+            showAlert(`批量PDF处理失败: ${error.message}`, 'error');
+        } finally {
+            resetProcessingState();
+        }
+    }
+
+    function displayBatchResults(data) {
+        // 显示汇总信息
+        summaryContent.innerHTML = `
+            <p style="margin: 0 0 8px 0;"><strong>总文件数：</strong>${data.summary.total_documents}</p>
+            <p style="margin: 0 0 8px 0;"><strong>成功处理：</strong>${data.summary.processed_count}</p>
+            <p style="margin: 0;"><strong>处理结果：</strong>${data.summary.message}</p>
+        `;
+
+        // 显示每个文档的结果
+        individualResults.innerHTML = '';
+        data.documents.forEach((doc, index) => {
+            const docResult = document.createElement('div');
+            docResult.style.cssText = 'border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 16px; overflow: hidden;';
+            
+            const hasImages = doc.markdown.has_images;
+            const imagesProcessed = doc.markdown.images_processed;
+            
+            // 确定图片状态
+            let imageStatus;
+            if (hasImages) {
+                imageStatus = imagesProcessed ? '已处理' : '未处理';
+            } else {
+                imageStatus = '无';
+            }
+            
+            docResult.innerHTML = `
+                <div style="background: #fafafa; padding: 12px; border-bottom: 1px solid #e8e8e8;">
+                    <h4 style="margin: 0; color: #262626;">${doc.document.original_name}</h4>
+                    <div style="font-size: 12px; color: #8c8c8c; margin-top: 4px;">
+                        大小: ${formatFileSize(doc.document.size_bytes)} | 
+                        图片: ${imageStatus}
+                    </div>
+                </div>
+                <div style="padding: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <h5 style="margin: 0; color: #262626;">Markdown内容</h5>
+                        <button onclick="copyMarkdown(${index})" class="ant-btn ant-btn-link" style="color: #1890ff; padding: 4px 8px;">
+                            📋 复制
+                        </button>
+                    </div>
+                    <div style="border: 1px solid #e8e8e8; border-radius: 8px; background: white; max-height: 300px; overflow-y: auto;">
+                        <pre id="markdownContent${index}" style="margin: 0; padding: 16px; white-space: pre-wrap; word-wrap: break-word; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 12px; line-height: 1.4;">${doc.markdown.content}</pre>
+                    </div>
+                </div>
+            `;
+            individualResults.appendChild(docResult);
+        });
+
+        resultsSection.style.display = 'block';
+
+        // Hide processing section after a delay
+        setTimeout(() => {
+            processingSection.style.display = 'none';
+        }, 2000);
+    }
+
+    window.copyMarkdown = function(index) {
+        const content = document.getElementById(`markdownContent${index}`).textContent;
+        navigator.clipboard.writeText(content).then(() => {
+            showAlert('内容已复制到剪贴板', 'success');
+        }).catch(() => {
+            showAlert('复制失败，请手动选择复制', 'error');
+        });
+    };
+
+    function resetProcessingState() {
+        isProcessing = false;
+        parseBtn.disabled = false;
+        parseBtnText.textContent = '开始批量解析';
+    }
+
+    // Add CSS for spinner animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

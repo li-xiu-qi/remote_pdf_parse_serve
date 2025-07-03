@@ -34,10 +34,30 @@
             </div>
             
             <div style="margin-bottom: 16px;">
-                <label style="display: flex; align-items: center; cursor: pointer;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 12px;">
                     <input type="checkbox" id="parseImagesCheckbox" style="margin-right: 8px;">
                     <span style="color: #262626;">同时解析PDF中的图片（将增加处理时间）</span>
                 </label>
+                
+                <!-- 解析后端选择 -->
+                <div style="margin-bottom: 12px;">
+                    <label for="backendSelect" style="color: #262626; margin-bottom: 6px; display: block; font-size: 14px;">解析后端：</label>
+                    <select id="backendSelect" style="width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px;">
+                        <option value="pipeline">Pipeline（通用）</option>
+                        <option value="vlm-transformers">VLM-Transformers（通用）</option>
+                        <option value="vlm-sglang-engine">VLM-SGLang-Engine（更快）</option>
+                    </select>
+                </div>
+                
+                <!-- 解析方法选择 -->
+                <div style="margin-bottom: 12px;">
+                    <label for="methodSelect" style="color: #262626; margin-bottom: 6px; display: block; font-size: 14px;">解析方法：</label>
+                    <select id="methodSelect" style="width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px;">
+                        <option value="auto">自动选择</option>
+                        <option value="txt">文本提取</option>
+                        <option value="ocr">OCR识别</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -55,7 +75,7 @@
     <div id="previewSection" style="margin-bottom: 24px; display: none;">
         <h3 style="margin-bottom: 16px; color: #262626;">文件预览</h3>
         <div style="border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden; background: white;">
-            <iframe id="pdfPreview" style="width: 100%; height: 500px; border: none; display: block;"></iframe>
+            <iframe id="pdfPreview" title="PDF文件预览" style="width: 100%; height: 500px; border: none; display: block;"></iframe>
         </div>
     </div>
 
@@ -133,6 +153,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearPdfBtn = document.getElementById('clearPdfBtn');
     const parseBtnText = document.getElementById('parseBtnText');
     const parseImagesCheckbox = document.getElementById('parseImagesCheckbox');
+    const backendSelect = document.getElementById('backendSelect');
+    const methodSelect = document.getElementById('methodSelect');
     const previewSection = document.getElementById('previewSection');
     const pdfPreview = document.getElementById('pdfPreview');
     const processingSection = document.getElementById('processingSection');
@@ -234,8 +256,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('file', currentFile);
         formData.append('parse_images', parseImagesCheckbox.checked);
+        formData.append('backend', backendSelect.value);
+        formData.append('method', methodSelect.value);
         
         console.log('parse_images checkbox状态:', parseImagesCheckbox.checked);
+        console.log('backend选择:', backendSelect.value);
+        console.log('method选择:', methodSelect.value);
         console.log('发送的parse_images值:', formData.get('parse_images'));
 
         try {
@@ -246,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (response.ok) {
                 const result = await response.json();
-                showAlert(`PDF文件处理成功，处理ID: ${result.processing_id}`, 'success');
+                showAlert(`PDF文件处理成功，处理ID: ${result.task_id}`, 'success');
                 
                 // 直接显示结果（因为处理是同步的）
                 displayResults(result);
@@ -265,24 +291,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }    }
 
     function displayResults(data) {
-        // 适应新的响应结构
-        markdownContent.textContent = data.markdown_content;
+        // 使用新的响应结构
+        const markdownData = data.markdown;
+        const processingData = data.processing;
+        
+        markdownContent.textContent = markdownData.content;
         resultsSection.style.display = 'block';
 
-        // 检查处理信息中是否包含图片
-        if (data.processing_info && data.processing_info.images_processed) {
+        // 检查是否有图片并且已处理
+        if (markdownData.has_images && markdownData.images_processed) {
             // 从markdown内容中提取图片文件名
-            const imageMatches = data.markdown_content.match(/!\[.*?\]\((.*?)\)/g);
+            const imageMatches = markdownData.content.match(/!\[.*?\]\((.*?)\)/g);
             if (imageMatches && imageMatches.length > 0) {
                 imagesContainer.innerHTML = '';
                 imageMatches.forEach(match => {
                     const urlMatch = match.match(/!\[.*?\]\((.*?)\)/);
                     if (urlMatch && urlMatch[1]) {
                         const imageUrl = urlMatch[1];
-                        // 如果是相对路径，转换为完整URL
-                        const fullImageUrl = imageUrl.startsWith('http') ? 
-                            imageUrl : 
-                            `${window.API_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+                        // 构建完整的图片URL
+                        let fullImageUrl;
+                        if (imageUrl.startsWith('http')) {
+                            fullImageUrl = imageUrl;
+                        } else {
+                            const baseUrl = processingData.remote_base_url;
+                            const separator = imageUrl.startsWith('/') ? '' : '/';
+                            fullImageUrl = `${baseUrl}${separator}${imageUrl}`;
+                        }
                         
                         const imageItem = document.createElement('div');
                         imageItem.style.cssText = 'border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden; background: white;';

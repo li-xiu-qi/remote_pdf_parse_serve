@@ -58,6 +58,16 @@ async def pdf_upload_page(request: Request):
         "config": CONFIG
     })
 
+@app.get("/pdf/multi", response_class=HTMLResponse)
+async def multi_pdf_upload_page(request: Request):
+    """批量PDF上传页面"""
+    from web_serves.config import get_api_base_url, CONFIG
+    return templates.TemplateResponse("simple_multi_pdf_upload_antd.html", {
+        "request": request,
+        "api_base_url": get_api_base_url(),
+        "config": CONFIG
+    })
+
 # API 配置端点
 @app.get("/api/config")
 async def get_frontend_config():

@@ -87,17 +87,35 @@ class MarkdownImageProcessor:
                 continue
                 
             rel_path = match.strip()
+            abs_path = None
+            
+            # 处理绝对URL路径（如 /uploads/images/xxx.jpg）
+            if rel_path.startswith('/uploads/images/'):
+                # 这是我们的静态文件路径，需要转换为实际的文件系统路径
+                image_filename = os.path.basename(rel_path)
+                web_image_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'images', image_filename)
+                abs_path = os.path.abspath(web_image_path)
             # 构建绝对路径
-            if os.path.isabs(rel_path):
+            elif os.path.isabs(rel_path):
                 abs_path = rel_path
             else:
+                # 首先尝试相对于markdown文件目录的路径
                 abs_path = os.path.abspath(os.path.join(markdown_file_dir, rel_path))
+                
+                # 如果文件不存在，且路径以 images/ 开头，则尝试在 web_serves/uploads/images 目录查找
+                if not os.path.exists(abs_path) and rel_path.startswith('images/'):
+                    image_filename = os.path.basename(rel_path)
+                    web_image_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'images', image_filename)
+                    web_image_path = os.path.abspath(web_image_path)
+                    if os.path.exists(web_image_path):
+                        abs_path = web_image_path
+                        self.logger.info(f"在web目录找到图片: {rel_path} -> {abs_path}")
             
             # 检查文件是否存在
-            if os.path.exists(abs_path):
+            if abs_path and os.path.exists(abs_path):
                 local_images.append((rel_path, abs_path))
             else:
-                self.logger.warning(f"图片文件不存在: {abs_path}")
+                self.logger.warning(f"图片文件不存在: {rel_path}, 尝试的路径: {abs_path}")
         
         return local_images
 

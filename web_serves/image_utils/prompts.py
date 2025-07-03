@@ -27,7 +27,7 @@ def get_image_analysis_prompt(title_max_length: int, description_max_length: int
 
 输出格式必须严格为:
 {{
-  "title": "简洁标题({title_max_length}字以内)",
+  "title": "标题({title_max_length}字以内)",
   "description": "详细描述({description_max_length}字以内)"
 }}
 

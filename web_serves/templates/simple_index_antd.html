@@ -24,6 +24,11 @@
                     📄 PDF解析
                 </button>
             </a>
+            <a href="/pdf/multi" style="text-decoration: none;">
+                <button class="ant-btn" style="height: 48px; padding: 0 32px; font-size: 16px; border-radius: 8px; background: #1890ff; border-color: #1890ff; color: white;">
+                    📚 批量PDF解析
+                </button>
+            </a>
         </div>
     </div>
 
@@ -81,16 +86,27 @@
                     <span style="color: #52c41a; margin-right: 8px;">✓</span>
                     <span style="color: #595959;">Markdown格式输出</span>
                 </div>
-                <div style="display: flex; align-items: center;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
                     <span style="color: #52c41a; margin-right: 8px;">✓</span>
                     <span style="color: #595959;">图片提取功能</span>
                 </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="color: #52c41a; margin-right: 8px;">✓</span>
+                    <span style="color: #595959;">批量处理支持</span>
+                </div>
             </div>
-            <a href="/pdf" style="text-decoration: none;">
-                <button class="ant-btn" style="width: 100%; height: 40px; border-radius: 6px; background: #52c41a; border-color: #52c41a; color: white;">
-                    开始解析PDF →
-                </button>
-            </a>
+            <div style="display: flex; gap: 8px;">
+                <a href="/pdf" style="text-decoration: none; flex: 1;">
+                    <button class="ant-btn" style="width: 100%; height: 40px; border-radius: 6px; background: #52c41a; border-color: #52c41a; color: white;">
+                        单个PDF解析 →
+                    </button>
+                </a>
+                <a href="/pdf/multi" style="text-decoration: none; flex: 1;">
+                    <button class="ant-btn" style="width: 100%; height: 40px; border-radius: 6px; background: #1890ff; border-color: #1890ff; color: white;">
+                        批量PDF解析 →
+                    </button>
+                </a>
+            </div>
         </div>
     </div>
 

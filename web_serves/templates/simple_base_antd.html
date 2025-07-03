@@ -50,6 +50,7 @@
         .nav-menu {
             display: flex;
             gap: 0;
+            align-items: center;
         }
         .nav-item {
             color: rgba(255, 255, 255, 0.65);
@@ -63,6 +64,51 @@
         .nav-item:hover, .nav-item.active {
             color: #1890ff;
             border-bottom-color: #1890ff;
+        }
+        .nav-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .nav-dropdown-trigger {
+            cursor: pointer;
+        }
+        .nav-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            min-width: 160px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+        .nav-dropdown:hover .nav-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .nav-dropdown-item {
+            display: block;
+            padding: 12px 16px;
+            color: #262626;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            border-bottom: none !important;
+            height: auto !important;
+            line-height: 1.4 !important;
+        }
+        .nav-dropdown-item:hover {
+            background-color: #f5f5f5;
+            color: #1890ff;
+        }
+        .nav-dropdown-item.active {
+            background-color: #e6f7ff;
+            color: #1890ff;
         }
         .container {
             max-width: 1200px;
@@ -120,7 +166,13 @@
         <nav class="nav-menu">
             <a href="/" class="nav-item" data-path="/">首页</a>
             <a href="/image" class="nav-item" data-path="/image">图片上传</a>
-            <a href="/pdf" class="nav-item" data-path="/pdf">PDF解析</a>
+            <div class="nav-dropdown">
+                <a href="#" class="nav-item nav-dropdown-trigger" data-path="/pdf">PDF解析 ▼</a>
+                <div class="nav-dropdown-menu">
+                    <a href="/pdf" class="nav-dropdown-item" data-path="/pdf">单个PDF解析</a>
+                    <a href="/pdf/multi" class="nav-dropdown-item" data-path="/pdf/multi">批量PDF解析</a>
+                </div>
+            </div>
         </nav>
     </header>
 
@@ -236,11 +288,34 @@
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
             const navItems = document.querySelectorAll('.nav-item');
+            const dropdownItems = document.querySelectorAll('.nav-dropdown-item');
             
+            // Reset all nav items
             navItems.forEach(item => {
                 item.classList.remove('active');
-                if (item.getAttribute('data-path') === currentPath) {
+            });
+            dropdownItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Set active state for main nav items
+            navItems.forEach(item => {
+                const itemPath = item.getAttribute('data-path');
+                if (itemPath === currentPath) {
                     item.classList.add('active');
+                }
+            });
+            
+            // Set active state for dropdown items and parent
+            dropdownItems.forEach(item => {
+                const itemPath = item.getAttribute('data-path');
+                if (itemPath === currentPath) {
+                    item.classList.add('active');
+                    // Also activate the parent dropdown trigger
+                    const dropdownTrigger = item.closest('.nav-dropdown').querySelector('.nav-dropdown-trigger');
+                    if (dropdownTrigger) {
+                        dropdownTrigger.classList.add('active');
+                    }
                 }
             });
         });

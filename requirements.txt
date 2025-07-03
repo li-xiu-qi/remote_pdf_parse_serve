@@ -3,8 +3,8 @@
 
 # ========== 核心机器学习依赖 ==========
 torch                    # 深度学习框架，用于AI模型推理
-transformers            # Hugging Face transformers库，用于NLP模型
-unimernet               # 文档解析和OCR工具
+# transformers            # Hugging Face transformers库，用于NLP模型
+# unimernet               # 文档解析和OCR工具
 
 # ========== FastAPI Web框架依赖 ==========
 fastapi               # 现代化的Python Web框架
@@ -20,8 +20,7 @@ openai                  # OpenAI API客户端，用于AI图像分析
 Pillow                  # Python图像处理库
 
 # ========== PDF处理依赖 ==========
-"magic-pdf[full]"              # PDF解析和转换工具
-
+mineru
 # ========== 异步和网络请求依赖 ==========
 aiofiles               # 异步文件I/O操作
 aiohttp                 # 异步HTTP客户端/服务器

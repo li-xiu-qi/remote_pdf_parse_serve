@@ -7,7 +7,6 @@ import json
 from typing import Dict, Any, Optional
 
 from web_serves.config import app_config
-from web_serves.image_utils.prompts import get_image_analysis_prompt
 from web_serves.utils.logger import get_logger
 
 import aiofiles
