@@ -35,14 +35,26 @@ def download_and_modify_json(url, local_filename, modifications, force=False):
 if __name__ == '__main__':
     # 命令行参数解析
     parser = argparse.ArgumentParser(description='下载MinerU模型并配置')
-    parser.add_argument('--device', choices=['cpu', 'cuda'], default='cpu', 
-                       help='选择设备模式: cpu 或 cuda (默认: cpu)')
+    parser.add_argument('--device', choices=['cpu', 'cuda'], default=None, 
+                       help='选择设备模式: cpu 或 cuda (默认: 自动检测)')
     parser.add_argument('--force', action='store_true', 
                        help='强制重新下载配置文件，即使本地已存在')
     args = parser.parse_args()
-    
+
+    # 自动检测CUDA
+    detected_device = 'cpu'
+    if args.device is not None:
+        detected_device = args.device
+    else:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                detected_device = 'cuda'
+        except ImportError:
+            pass
+
     print(f"🚀 开始下载MinerU模型...")
-    print(f"⚙️  设备模式: {args.device}")
+    print(f"⚙️  设备模式: {detected_device}")
     
     mineru_patterns = [
         # "models/Layout/LayoutLMv3/*",
@@ -73,7 +85,7 @@ if __name__ == '__main__':
     json_mods = {
         'models-dir': model_dir,
         'layoutreader-model-dir': layoutreader_model_dir,
-        'device-mode': args.device,
+        'device-mode': detected_device,
         'formula-config': {
             'mfd_model': 'yolo_v8_mfd',
             'mfr_model': 'unimernet_hf_small_2503',
@@ -83,7 +95,7 @@ if __name__ == '__main__':
 
     download_and_modify_json(json_url, config_file, json_mods, args.force)
     print(f'✅ 配置文件已成功生成: {config_file}')
-    print(f'🎯 设备模式已设置为: {args.device}')
-    if args.device == 'cuda':
+    print(f'🎯 设备模式已设置为: {detected_device}')
+    if detected_device == 'cuda':
         print('⚠️  请确保您的系统已正确安装CUDA和对应的PyTorch版本')
         print('💡 可使用 nvidia-smi 检查GPU状态')
