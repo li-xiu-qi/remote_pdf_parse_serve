@@ -60,7 +60,7 @@ if __name__ == '__main__':
         # "models/Layout/LayoutLMv3/*",
         "models/Layout/YOLO/*",
         "models/MFD/YOLO/*",
-        "models/MFR/unimernet_hf_small_2503/*",
+        "models/MFR/unimernet_hf_small_2501/*",
         "models/OCR/paddleocr_torch/*",
         # "models/TabRec/TableMaster/*",
         # "models/TabRec/StructEqTable/*",
@@ -88,7 +88,7 @@ if __name__ == '__main__':
         'device-mode': detected_device,
         'formula-config': {
             'mfd_model': 'yolo_v8_mfd',
-            'mfr_model': 'unimernet_hf_small_2503',
+            'mfr_model': 'unimernet_hf_small_2501',
             'enable': True
         }
     }
