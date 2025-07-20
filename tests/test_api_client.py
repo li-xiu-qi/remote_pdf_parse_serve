@@ -14,7 +14,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from utils.api_client import ApiClient
+    from utils.remote_pdf_api_client import ApiClient
 except ImportError:
     print("错误：无法从 utils.api_client 导入 ApiClient。请确保 __init__.py 存在于 utils 目录中，并且 utils 在PYTHONPATH中。")
     sys.exit(1)

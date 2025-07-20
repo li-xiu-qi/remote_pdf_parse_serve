@@ -3,7 +3,7 @@ module.exports = {
     // 应用基本信息
     name: 'pdf-parse-server',
     script: 'run_server.py',
-    interpreter: '/home/xiaoke/miniconda3/envs/mineru/bin/python',
+    interpreter: '/home/xiaoke/projects/remote_pdf_parse_serve/.venv/bin/python',
     args: '',
     cwd: '/home/xiaoke/projects/remote_pdf_parse_serve',
     

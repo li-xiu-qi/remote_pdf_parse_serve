@@ -15,7 +15,12 @@ from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, File, UploadFile, HTTPException, Body, Query, Form
 from fastapi.responses import JSONResponse
 
-from web_serves.pdf_utils.mineru_parse import mineru_pdf2md, mineru_multi_pdf2md
+from web_serves.pdf_utils.mineru_parse import (
+    mineru_pdf2md, 
+    mineru_multi_pdf2md,
+    clear_pdf_cache,
+    get_cache_stats
+)
 from web_serves.markdown_utils.markdown_image_processor import MarkdownImageProcessor
 from web_serves.config import (
     get_storage_paths, 
@@ -78,13 +83,14 @@ def cleanup_temp_directory(temp_dir: Path) -> bool:
 
 
 @router.post("/pdf")
-async def upload_and_process_pdf(
+async def upload_pdf(
     file: UploadFile = File(...),
-    provider: str = Form(default=DEFAULT_IMAGE_PROVIDER), 
+    provider: str = Form(default=DEFAULT_IMAGE_PROVIDER),
     max_concurrent: int = Form(default=DEFAULT_MAX_CONCURRENT_AI),
     parse_images: bool = Form(default=True),
     backend: str = Form(default="pipeline"),
-    method: str = Form(default="auto")
+    method: str = Form(default="auto"),
+    use_cache: bool = Form(default=True)  # 新增缓存参数
 ):
     """
     上传PDF文件，转换为Markdown，并可选择性处理图片
@@ -96,6 +102,7 @@ async def upload_and_process_pdf(
         parse_images: 是否对Markdown中的图片进行AI分析和处理
         backend: 解析PDF所用后端 (pipeline, vlm-transformers, vlm-sglang-engine)
         method: 解析PDF的方法 (auto, txt, ocr)
+        use_cache: 是否使用缓存功能，默认为True
         
     Returns:
         包含处理后的Markdown内容的JSON响应
@@ -105,6 +112,7 @@ async def upload_and_process_pdf(
     print("backend:", backend)
     print("method:", method)
     print("parse_images目前设置的参数是:", parse_images)
+    print("use_cache:", use_cache)
     
     remote_base_url = f"{get_api_base_url()}/uploads/images/"
     storage_paths = get_storage_paths()
@@ -128,7 +136,7 @@ async def upload_and_process_pdf(
         temp_pdf_path = temp_work_dir / pdf_filename
         shutil.copy2(pdf_path, temp_pdf_path)
         
-        # 3. 使用mineru转换PDF为Markdown
+        # 3. 使用mineru转换PDF为Markdown，支持缓存
         print(f"开始转换PDF: {temp_pdf_path}")
         markdown_content = mineru_pdf2md(
             pdf_file_path=str(temp_pdf_path),
@@ -136,7 +144,8 @@ async def upload_and_process_pdf(
             return_path=False,
             backend=backend,
             method=method,
-            web_images_dir=str(storage_paths["images_dir"])  # 传入web图片目录
+            web_images_dir=str(storage_paths["images_dir"]),  # 传入web图片目录
+            use_cache=use_cache  # 传入缓存参数
         )
         
         # 4. 处理Markdown中的图片（如果需要）
@@ -301,7 +310,8 @@ async def upload_and_process_multiple_pdfs(
     max_concurrent: int = Form(default=DEFAULT_MAX_CONCURRENT_AI),
     parse_images: bool = Form(default=True),
     backend: str = Form(default="pipeline"),
-    method: str = Form(default="auto")
+    method: str = Form(default="auto"),
+    use_cache: bool = Form(default=True)  
 ):
     """
     上传多个PDF文件，批量转换为Markdown，并可选择性处理图片
@@ -313,6 +323,7 @@ async def upload_and_process_multiple_pdfs(
         parse_images: 是否对Markdown中的图片进行AI分析和处理
         backend: 解析PDF所用后端 (pipeline, vlm-transformers, vlm-sglang-engine)
         method: 解析PDF的方法 (auto, txt, ocr)
+        use_cache: 是否使用缓存功能，默认为True
         
     Returns:
         包含处理后的Markdown内容列表的JSON响应
@@ -322,6 +333,7 @@ async def upload_and_process_multiple_pdfs(
     
     print(f"上传的文件数量: {len(files)}")
     print(f"provider: {provider}, backend: {backend}, method: {method}")
+    print(f"use_cache: {use_cache}")
     
     remote_base_url = f"{get_api_base_url()}/uploads/images/"
     storage_paths = get_storage_paths()
@@ -336,7 +348,7 @@ async def upload_and_process_multiple_pdfs(
         # 2. 保存上传的PDF文件
         pdf_paths, temp_pdf_paths = await save_uploaded_pdfs(files, storage_paths["pdf_dir"], temp_work_dir)
         
-        # 3. 使用mineru批量转换PDF为Markdown
+        # 3. 使用mineru批量转换PDF为Markdown，支持缓存
         print("开始批量转换PDF...")
         pdf_results = mineru_multi_pdf2md(
             pdf_file_paths=temp_pdf_paths,
@@ -344,7 +356,8 @@ async def upload_and_process_multiple_pdfs(
             return_content=True,
             backend=backend,
             method=method,
-            web_images_dir=str(storage_paths["images_dir"])  # 传入web图片目录
+            web_images_dir=str(storage_paths["images_dir"]),  # 传入web图片目录
+            use_cache=use_cache  # 传入缓存参数
         )
         
         # 4. 处理每个PDF结果
@@ -407,3 +420,49 @@ async def upload_and_process_multiple_pdfs(
             raise HTTPException(status_code=500, detail=e.message)
         else:
             raise HTTPException(status_code=500, detail=f"批量PDF处理失败: {str(e)}")
+
+
+# 缓存管理路由
+@router.get("/cache/stats")
+async def get_cache_statistics():
+    """
+    获取PDF解析缓存统计信息
+    
+    Returns:
+        包含缓存统计信息的JSON响应
+    """
+    try:
+        stats = get_cache_stats()
+        return JSONResponse(content={
+            "message": "缓存统计信息获取成功",
+            "cache_stats": stats
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取缓存统计信息失败: {str(e)}")
+
+
+@router.delete("/cache/clear")
+async def clear_cache():
+    """
+    清理PDF解析缓存
+    
+    Returns:
+        包含清理结果的JSON响应
+    """
+    try:
+        success = clear_pdf_cache()
+        if success:
+            return JSONResponse(content={
+                "message": "缓存清理成功",
+                "success": True
+            })
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "message": "缓存清理失败",
+                    "success": False
+                }
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清理缓存失败: {str(e)}")

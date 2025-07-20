@@ -194,6 +194,7 @@ class ApiClient:
         method: str = "auto",
         parse_images: bool = True,
         max_concurrent: int = 5,
+        use_cache: bool = True,  # 新增缓存参数
         timeout: int = DEFAULT_TIMEOUT_PDF,
     ) -> Optional[Dict]:
         """
@@ -206,6 +207,7 @@ class ApiClient:
             method (str): PDF解析方法 (auto, txt, ocr)。
             parse_images (bool): 是否处理PDF中的图片。
             max_concurrent (int): AI并发处理数。
+            use_cache (bool): 是否使用缓存功能。
             timeout (int): 请求超时时间（秒）。
 
         Returns:
@@ -231,6 +233,7 @@ class ApiClient:
                     "method": method,
                     "parse_images": parse_images,
                     "max_concurrent": max_concurrent,
+                    "use_cache": use_cache,  # 添加缓存参数
                 }
 
                 upload_url = f"{self.base_url}/upload/pdf"
@@ -240,6 +243,7 @@ class ApiClient:
                 print(f"   🔍 解析方法: {method}")
                 print(f"   🖼️ 处理图片: {parse_images}")
                 print(f"   🔄 最大并发数: {max_concurrent}")
+                print(f"   💾 使用缓存: {use_cache}")
 
                 start_time = time.time()
                 response = requests.post(
@@ -284,6 +288,7 @@ class ApiClient:
         method: str = "auto",
         parse_images: bool = True,
         max_concurrent: int = 5,
+        use_cache: bool = True,  # 新增缓存参数
         timeout: int = DEFAULT_TIMEOUT_PDF,
     ) -> Optional[Dict]:
         """
@@ -296,6 +301,7 @@ class ApiClient:
             method (str): PDF解析方法 (auto, txt, ocr)。
             parse_images (bool): 是否处理PDF中的图片。
             max_concurrent (int): AI并发处理数。
+            use_cache (bool): 是否使用缓存功能。
             timeout (int): 请求超时时间（秒）。
 
         Returns:
@@ -333,6 +339,7 @@ class ApiClient:
                 "method": method,
                 "parse_images": parse_images,
                 "max_concurrent": max_concurrent,
+                "use_cache": use_cache,  # 添加缓存参数
             }
 
             upload_url = f"{self.base_url}/upload/pdfs"
@@ -342,6 +349,7 @@ class ApiClient:
             print(f"   🔍 解析方法: {method}")
             print(f"   🖼️ 处理图片: {parse_images}")
             print(f"   🔄 最大并发数: {max_concurrent}")
+            print(f"   💾 使用缓存: {use_cache}")
 
             start_time = time.time()
             response = requests.post(
@@ -385,16 +393,86 @@ class ApiClient:
                 except Exception:
                     pass
 
+    def get_cache_stats(self) -> Optional[Dict]:
+        """
+        获取PDF解析缓存统计信息。
+
+        Returns:
+            Optional[Dict]: 如果成功，返回缓存统计信息，否则返回None。
+        """
+        try:
+            url = f"{self.base_url}/upload/cache/stats"
+            print(f"📊 获取缓存统计信息: {url}")
+
+            response = requests.get(url, timeout=30)
+            print(f"   📊 响应状态: {response.status_code}")
+
+            if response.status_code == 200:
+                result = response.json()
+                print("✅ 缓存统计信息获取成功")
+                return result
+            else:
+                print(f"❌ 获取缓存统计信息失败: {response.status_code}")
+                try:
+                    error_detail = response.json()
+                    print(f"   错误详情: {error_detail}")
+                except json.JSONDecodeError:
+                    print(f"   响应内容: {response.text}")
+                return None
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ 请求失败: {e}")
+            return None
+        except Exception as e:
+            print(f"❌ 获取缓存统计信息时发生意外错误: {e}")
+            return None
+
+    def clear_cache(self) -> bool:
+        """
+        清理PDF解析缓存。
+
+        Returns:
+            bool: 如果成功返回True，否则返回False。
+        """
+        try:
+            url = f"{self.base_url}/upload/cache/clear"
+            print(f"🧹 清理缓存: {url}")
+
+            response = requests.delete(url, timeout=30)
+            print(f"   📊 响应状态: {response.status_code}")
+
+            if response.status_code == 200:
+                result = response.json()
+                print("✅ 缓存清理成功")
+                return result.get("success", False)
+            else:
+                print(f"❌ 清理缓存失败: {response.status_code}")
+                try:
+                    error_detail = response.json()
+                    print(f"   错误详情: {error_detail}")
+                except json.JSONDecodeError:
+                    print(f"   响应内容: {response.text}")
+                return False
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ 请求失败: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ 清理缓存时发生意外错误: {e}")
+            return False
+
     def health_check(self) -> bool:
         """
-        检查API服务器健康状态。
+        检查API服务器的健康状态。
 
         Returns:
             bool: 如果服务器正常运行返回True，否则返回False。
         """
         try:
-            response = requests.get(f"{self.base_url}/", timeout=10)
+            url = f"{self.base_url}/health"
+            response = requests.get(url, timeout=10)
             return response.status_code == 200
-        except Exception as e:
-            print(f"❌ 健康检查失败: {e}")
+        except requests.exceptions.RequestException:
+            return False
+        except Exception:
             return False

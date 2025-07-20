@@ -201,6 +201,7 @@ def upload_pdf(self, pdf_path: Path,
                method: str = "auto",
                parse_images: bool = True, 
                max_concurrent: int = 5,
+               use_cache: bool = True,
                timeout: int = DEFAULT_TIMEOUT_PDF) -> Optional[Dict]
 ```
 
@@ -212,6 +213,7 @@ def upload_pdf(self, pdf_path: Path,
 - `method` (str): PDF 解析方法。选项: `'auto'`, `'txt'`, `'ocr'`。默认: `'auto'`
 - `parse_images` (bool): 是否对 PDF 中的图片进行 AI 分析。默认: `True`
 - `max_concurrent` (int): AI 处理最大并发数。默认: `5`
+- `use_cache` (bool): 是否使用缓存功能。默认: `True`
 - `timeout` (int): 请求超时时间（秒）。默认: `2400`
 
 #### 返回值
@@ -247,15 +249,16 @@ from utils.api_client import ApiClient
 
 client = ApiClient()
 
-# 上传并处理 PDF（启用图片AI分析）
+# 上传并处理 PDF（启用图片AI分析和缓存）
 pdf_path = Path("assets/pdfs/document.pdf")
 result = client.upload_pdf(
     pdf_path=pdf_path,
     provider="zhipu",        # AI 提供商
     backend="pipeline",      # 解析后端
     method="auto",           # 解析方法
-    parse_images=True,     # 启用图片 AI 分析
-    max_concurrent=3         # AI 处理并发数
+    parse_images=True,       # 启用图片 AI 分析
+    max_concurrent=3,        # AI 处理并发数
+    use_cache=True           # 启用缓存（默认）
 )
 
 if result:
@@ -273,7 +276,14 @@ if result:
 result_vlm = client.upload_pdf(
     pdf_path=pdf_path,
     backend="vlm-sglang-engine",  # VLM 后端
-    parse_images=False          # 关闭图片 AI 分析
+    parse_images=False,           # 关闭图片 AI 分析
+    use_cache=True                # 启用缓存
+)
+
+# 强制重新解析（不使用缓存）
+result_fresh = client.upload_pdf(
+    pdf_path=pdf_path,
+    use_cache=False              # 禁用缓存，强制重新解析
 )
 ```
 
@@ -290,6 +300,7 @@ def upload_multiple_pdfs(self, pdf_paths: List[Path],
                         method: str = "auto",
                         parse_images: bool = True, 
                         max_concurrent: int = 5,
+                        use_cache: bool = True,
                         timeout: int = DEFAULT_TIMEOUT_PDF) -> Optional[Dict]
 ```
 
@@ -301,6 +312,7 @@ def upload_multiple_pdfs(self, pdf_paths: List[Path],
 - `method` (str): PDF 解析方法。默认: `'auto'`
 - `parse_images` (bool): 是否处理图片。默认: `True`
 - `max_concurrent` (int): AI 处理并发数。默认: `5`
+- `use_cache` (bool): 是否使用缓存功能。默认: `True`
 - `timeout` (int): 请求超时时间（秒）。默认: `2400`
 
 #### 返回值
@@ -361,7 +373,8 @@ result = client.upload_multiple_pdfs(
     backend="pipeline",
     method="auto",
     parse_images=True,
-    max_concurrent=3
+    max_concurrent=3,
+    use_cache=True           # 启用缓存
 )
 
 if result:
@@ -377,4 +390,131 @@ if result:
             with open(save_path, 'w', encoding='utf-8') as f:
                 f.write(markdown_content)
             print(f"已保存: {save_path}")
+
+# 第二次处理相同文件（会使用缓存，速度更快）
+result_cached = client.upload_multiple_pdfs(
+    pdf_paths=pdf_files,
+    provider="zhipu",
+    backend="pipeline", 
+    method="auto",
+    parse_images=True,
+    use_cache=True           # 使用缓存
+)
+
+# 强制重新处理（不使用缓存）
+result_fresh = client.upload_multiple_pdfs(
+    pdf_paths=pdf_files,
+    use_cache=False          # 禁用缓存
+)
+```
+
+---
+
+## 💾 缓存管理功能
+
+### `get_cache_stats()`
+
+获取PDF解析缓存的统计信息。
+
+#### 方法签名
+
+```python
+def get_cache_stats(self) -> Optional[Dict]
+```
+
+#### 返回值
+
+- `Optional[Dict]`: 成功时返回包含缓存统计信息的字典，失败时返回 `None`
+
+#### 响应格式
+
+```json
+{
+    "message": "缓存统计信息获取成功",
+    "cache_stats": {
+        "cache_size": 10,
+        "cache_directory": "/home/user/.cache/remote_pdf_parse_serve",
+        "disk_usage": 1073741824
+    }
+}
+```
+
+#### 示例
+
+```python
+from utils.api_client import ApiClient
+
+client = ApiClient()
+
+# 获取缓存统计信息
+stats = client.get_cache_stats()
+
+if stats:
+    cache_info = stats.get('cache_stats', {})
+    print(f"缓存项目数量: {cache_info.get('cache_size', 0)}")
+    print(f"缓存目录: {cache_info.get('cache_directory', '')}")
+    print(f"磁盘使用量: {cache_info.get('disk_usage', 0) / 1024 / 1024:.2f} MB")
+else:
+    print("获取缓存统计信息失败")
+```
+
+### `clear_cache()`
+
+清理PDF解析缓存。
+
+#### 方法签名
+
+```python
+def clear_cache(self) -> bool
+```
+
+#### 返回值
+
+- `bool`: 如果成功清理缓存返回 `True`，否则返回 `False`
+
+#### 示例
+
+```python
+from utils.api_client import ApiClient
+
+client = ApiClient()
+
+# 清理缓存
+success = client.clear_cache()
+
+if success:
+    print("缓存清理成功")
+else:
+    print("缓存清理失败")
+```
+
+---
+
+## 🔧 缓存功能说明
+
+### 缓存机制
+
+- **自动缓存**: 默认情况下，所有PDF解析结果都会被缓存，提高重复解析的速度
+- **缓存容量**: 支持最大100GB的缓存空间
+- **缓存过期**: 缓存项目默认7天后过期
+- **缓存key**: 基于PDF文件前8KB内容和解析参数生成唯一标识
+
+### 使用建议
+
+1. **首次使用**: 第一次解析PDF会花费正常时间，并自动保存到缓存
+2. **重复解析**: 相同PDF文件和参数的解析会从缓存中快速返回结果
+3. **参数变化**: 不同的解析参数（backend、method等）会使用不同的缓存条目
+4. **缓存管理**: 定期查看和清理缓存以释放磁盘空间
+
+### 缓存控制
+
+```python
+# 启用缓存（默认）
+result = client.upload_pdf(pdf_path, use_cache=True)
+
+# 禁用缓存（强制重新解析）
+result = client.upload_pdf(pdf_path, use_cache=False)
+
+# 批量处理时也支持缓存控制
+results = client.upload_multiple_pdfs(pdf_paths, use_cache=True)
 ```

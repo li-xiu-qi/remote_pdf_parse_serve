@@ -3,11 +3,13 @@
 """
 主应用入口文件
 """
+import time
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+import time
 
 from web_serves.config import API_CONFIG, BASE_DIR, CORS_CONFIG, SERVER_CONFIG
 from web_serves.routers import image_upload, pdf_processing
@@ -18,6 +20,12 @@ app = FastAPI(**API_CONFIG)
 
 # 添加 CORS 中间件
 app.add_middleware(CORSMiddleware, **CORS_CONFIG)
+
+# 健康检查端点
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    return {"status": "healthy", "timestamp": int(time.time())}
 
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")

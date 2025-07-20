@@ -1,5 +1,4 @@
 \
-# filepath: c:\\Users\\k\\Documents\\project\\programming_project\\python_project\\importance\\remote_pdf_parse_serve\\web_serves\\image_utils\\prompts.py
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
@@ -17,7 +16,7 @@ def get_image_analysis_prompt(title_max_length: int, description_max_length: int
     Returns:
         格式化的提示词字符串。
     """
-    return f"""请分析这张图片并生成一个{title_max_length}字以内的标题、{description_max_length}字以内的图片描述，使用JSON格式输出。
+    return f"""请分析这张图片并生成一个{title_max_length}字以上的标题、{description_max_length}字以上的图片描述，使用JSON格式输出。
 
 分析以下方面:
 1. 图像类型（图表、示意图、照片等）
