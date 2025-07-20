@@ -205,6 +205,10 @@ temp/
 tmp/
 *.tmp
 
+# 输出目录（完全忽略，包括缓存、图片、PDF等）
+output/
+output/**
+
 # 上传文件目录（完全忽略）
 web_serves/uploads/
 uploads/
@@ -234,13 +238,13 @@ settings.local.py
 *.sqlite3
 
 # 媒体文件（如果不需要版本控制）
-# *.jpg
-# *.jpeg
-# *.png
-# *.gif
-# *.pdf
-# *.mp4
-# *.mp3
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+*.mp4
+*.mp3
 
 # AI模型文件（通常很大）
 *.bin
