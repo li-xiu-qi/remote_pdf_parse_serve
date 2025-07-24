@@ -103,15 +103,32 @@ def test_pdf_upload_with_params(process_images_value, test_name):
 
 
 def test_pdf_upload_api():
-    """执行完整的PDF测试"""
+    """执行完整的PDF测试，增加健康检查"""
     print("🚀 开始PDF解析API接口测试...")
     print(f"🌐 测试地址: {API_BASE_URL}")
-    
+
+    # 健康检查
+    try:
+        health_url = f"{API_BASE_URL}/health"
+        print(f"🔎 正在检查API健康状态: {health_url}")
+        resp = requests.get(health_url, timeout=5)
+        if resp.status_code == 200:
+            print("✅ API健康检查通过！")
+        else:
+            print(f"❌ API健康检查失败，状态码: {resp.status_code}")
+            print(f"   响应内容: {resp.text}")
+            print("⏹️  跳过后续测试。")
+            return False
+    except Exception as e:
+        print(f"❌ API健康检查请求失败: {e}")
+        print("⏹️  跳过后续测试。")
+        return False
+
     # 测试开启图片处理
     success1 = test_pdf_upload_with_params(True, "开启图片处理")
     # 测试不开启图片处理
     success2 = test_pdf_upload_with_params(False, "不开启图片处理")
-    
+
     print("\n" + "=" * 60)
     print("PDF解析API接口测试结果:")
     print(f"开启图片处理: {'成功' if success1 else '失败'}")

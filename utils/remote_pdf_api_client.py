@@ -192,9 +192,9 @@ class ApiClient:
         provider: str = DEFAULT_PROVIDER,
         backend: str = "pipeline",
         method: str = "auto",
-        parse_images: bool = True,
+        parse_images: bool = False,
         max_concurrent: int = 5,
-        use_cache: bool = True,  # 新增缓存参数
+        use_cache: bool = True, 
         timeout: int = DEFAULT_TIMEOUT_PDF,
     ) -> Optional[Dict]:
         """
@@ -286,7 +286,7 @@ class ApiClient:
         provider: str = DEFAULT_PROVIDER,
         backend: str = "pipeline",
         method: str = "auto",
-        parse_images: bool = True,
+        parse_images: bool = False,
         max_concurrent: int = 5,
         use_cache: bool = True,  # 新增缓存参数
         timeout: int = DEFAULT_TIMEOUT_PDF,

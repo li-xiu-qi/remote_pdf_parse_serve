@@ -133,6 +133,8 @@ OPENAI_VISION_MODEL=gpt-4o
 
 ### 3. 下载模型 (可选)
 
+建议运行的时候让他自动下载模型。
+
 ```bash
 python utils/download_mineru_models.py
 ```
@@ -170,7 +172,6 @@ pm2 start ecosystem.config.js --env production
 # 4. 查看启动状态
 pm2 status
 ```
-
 
 **PM2 管理命令:**
 
@@ -227,7 +228,6 @@ pm2 ecosystem                       # 生成示例配置文件
 - **📄 PDF上传**: <http://localhost:10001/pdf>
 - **📚 API文档**: <http://localhost:10001/docs>
 - **📖 ReDoc文档**: <http://localhost:10001/redoc>
-
 
 ## 🏗️ 架构设计
 
